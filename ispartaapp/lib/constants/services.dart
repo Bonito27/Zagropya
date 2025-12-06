@@ -36,14 +36,14 @@ class _ServicesPageState extends State<ServicesPage> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(15),
                     onTap: () {
-                      print("1. Karta Tıklandı");
+                      print("Otobüs Seferleri");
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.directions_bus, size: 30),
                         SizedBox(width: 10),
-                        Text("1. Kart"),
+                        Text("Otobüs Seferleri"),
                       ],
                     ),
                   ),
@@ -56,14 +56,14 @@ class _ServicesPageState extends State<ServicesPage> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(15),
                     onTap: () {
-                      print("2. Karta Tıklandı");
+                      print("Arıza Bildirim / Talep");
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.directions_bus, size: 30),
                         SizedBox(width: 10),
-                        Text("2. Kart"),
+                        Text("Arıza Bildirim / Talep"),
                       ],
                     ),
                   ),
@@ -76,14 +76,14 @@ class _ServicesPageState extends State<ServicesPage> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(15),
                     onTap: () {
-                      print("3. Karta Tıklandı");
+                      print("Yeşil alanlar");
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.directions_bus, size: 30),
                         SizedBox(width: 10),
-                        Text("3. Kart"),
+                        Text("Yeşil alanlar"),
                       ],
                     ),
                   ),
@@ -96,14 +96,14 @@ class _ServicesPageState extends State<ServicesPage> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(15),
                     onTap: () {
-                      print("4. Karta Tıklandı");
+                      print("Etkinlikler");
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.directions_bus, size: 30),
                         SizedBox(width: 10),
-                        Text("4. Kart"),
+                        Text("Etkinlikler"),
                       ],
                     ),
                   ),

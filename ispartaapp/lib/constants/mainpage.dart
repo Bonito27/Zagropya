@@ -117,21 +117,100 @@ class _MainPageContentState extends State<MainPageContent> {
               ],
             ),
           ),
-          Row(
+          GridView.count(
+            crossAxisCount: 2, // Yan yana kaç tane sığsın? (Senin tasarımda 2)
+            crossAxisSpacing: 12, // Yatay boşluk
+            mainAxisSpacing: 12, // Dikey boşluk
+            childAspectRatio:
+                2.8, // Kartların en/boy oranı (Dikdörtgen olması için)
+            shrinkWrap: true, // İçindeki elemanlar kadar yer kaplasın
+            physics:
+                const NeverScrollableScrollPhysics(), // Sayfanın kendi kaydırmasını kullansın
+            padding: const EdgeInsets.all(10), // Kenar boşluğu
             children: [
-              Text("Otobüs Saatleri"),
-              SizedBox(width: 20),
-              Text("Etkinlikler"),
+              // KARTLAR
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusGeometry.circular(15),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(15),
+                  onTap: () {
+                    print("Otobüs Seferleri");
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.directions_bus, size: 30),
+                      SizedBox(width: 10),
+                      Text("Otobüs Seferleri"),
+                    ],
+                  ),
+                ),
+              ),
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusGeometry.circular(15),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(15),
+                  onTap: () {
+                    print("Etkinlikler");
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.directions_bus, size: 30),
+                      SizedBox(width: 10),
+                      Text("Etkinlikler"),
+                    ],
+                  ),
+                ),
+              ),
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusGeometry.circular(15),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(15),
+                  onTap: () {
+                    print("Acil Numaralar");
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.directions_bus, size: 30),
+                      SizedBox(width: 10),
+                      Text("Acil Numaralar"),
+                    ],
+                  ),
+                ),
+              ),
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusGeometry.circular(15),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(15),
+                  onTap: () {
+                    print("Nöbetçi Eczaneler");
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.directions_bus, size: 30),
+                      SizedBox(width: 10),
+                      Text("Nöbetçi Eczaneler"),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
-          Row(
-            children: [
-              Text("Nöbetçi Eczaneler"),
-              SizedBox(width: 20),
-              Text("Fatura Öde"),
-            ],
-          ),
-          Row(children: [Text("Acil Numaralar")]),
         ],
       ),
     );
