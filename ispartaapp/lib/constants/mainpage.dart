@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
+
 import 'package:ispartaapp/constants/announcement.dart';
 import 'package:ispartaapp/constants/profilepage.dart';
 import 'package:ispartaapp/constants/services.dart';
@@ -16,11 +17,12 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    MainPageContent(),
-    ServicesPage(),
-    AnnouncementPage(),
-    ProfilePage(),
+    const MainPageContent(),
+    const ServicesPage(),
+    const AnnouncementPage(),
+    const ProfilePage(),
   ];
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -33,10 +35,16 @@ class _MainPageState extends State<MainPage> {
       debugShowCheckedModeBanner: false,
       home: SafeArea(
         child: Scaffold(
+          backgroundColor: AppColors.bg,
+          body: _pages[_selectedIndex],
           bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
-            backgroundColor: HexColor('#F8F8FF '),
+            backgroundColor: HexColor('#F8F8FF'),
             selectedIconTheme: IconThemeData(color: AppColors.primary),
+            selectedItemColor: AppColors.primary,
+            unselectedItemColor: Colors.grey,
+            currentIndex: _selectedIndex,
+            onTap: _onItemTapped,
             items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
                 icon: Icon(Icons.home),
@@ -47,7 +55,7 @@ class _MainPageState extends State<MainPage> {
                 label: 'Hizmetler',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.settings),
+                icon: Icon(Icons.notifications),
                 label: 'Duyurular',
               ),
               BottomNavigationBarItem(
@@ -55,12 +63,7 @@ class _MainPageState extends State<MainPage> {
                 label: 'Profil',
               ),
             ],
-            currentIndex: _selectedIndex,
-            selectedItemColor: AppColors.primary,
-            onTap: _onItemTapped,
           ),
-          backgroundColor: AppColors.bg,
-          body: _pages[_selectedIndex],
         ),
       ),
     );
@@ -81,235 +84,70 @@ class _MainPageContentState extends State<MainPageContent> {
       padding: const EdgeInsets.all(8.0),
       child: Column(
         children: [
-          Row(children: [Text("Hava durumu")]),
-          Text("Duyurular"),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.red,
-                  margin: EdgeInsets.all(8),
-                ),
-                Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.red,
-                  margin: EdgeInsets.all(8),
-                ),
-                Container(
-                  width: 100,
-                  height: 100,
-
-                  margin: EdgeInsets.all(8),
-                  decoration: BoxDecoration(gradient: AppColors.cards),
-                ),
-                Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.red,
-                  margin: EdgeInsets.all(8),
-                ),
-                Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.red,
-                  margin: EdgeInsets.all(8),
-                ),
-                Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.red,
-                  margin: EdgeInsets.all(8),
-                ),
-              ],
+          _buildHeader("Hava Durumu"),
+          const SizedBox(height: 10),
+          _buildHeader("Duyurular"),
+          const SizedBox(height: 10),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Column(
+                children: [
+                  _buildContentCard(text: "1. Duyuru", color: Colors.red),
+                  _buildContentCard(text: "2. Duyuru", color: Colors.blue),
+                  _buildContentCard(
+                    text: "Gradient Kutu",
+                    gradient: AppColors.cards,
+                  ),
+                  _buildContentCard(text: "Turuncu Kutu", color: Colors.orange),
+                  _buildContentCard(text: "Mor Kutu", color: Colors.purple),
+                  _buildContentCard(text: "Yeşil Kutu", color: Colors.green),
+                ],
+              ),
             ),
           ),
-          GridView.count(
-            crossAxisCount: 2, //
-            crossAxisSpacing: 12, // Yatay boşluk
-            mainAxisSpacing: 12, // Dikey boşluk
-            childAspectRatio:
-                2.3, // Kartların en/boy oranı (Dikdörtgen olması için)
-            shrinkWrap: true, // İçindeki elemanlar kadar yer kaplasın
-            physics:
-                const NeverScrollableScrollPhysics(), // Sayfanın kendi kaydırmasını kullansın
-            padding: const EdgeInsets.all(10), // Kenar boşluğu
-            children: [
-              // KARTLAR
-              Card(
-                elevation: 4,
-                // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Container(
-                  // 2. ADIM: Hazır gradient'i buraya veriyoruz
-                  decoration: BoxDecoration(gradient: AppColors.cards),
-                  child: InkWell(
-                    onTap: () {
-                      print("Otobüs Seferleri");
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(
-                        0.0,
-                      ), // İçerik biraz ferah dursun
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
-                          Icon(
-                            Icons.directions_bus,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "Otobüs Seferleri",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Card(
-                elevation: 4,
-                // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Container(
-                  // 2. ADIM: Hazır gradient'i buraya veriyoruz
-                  decoration: BoxDecoration(gradient: AppColors.cards),
-                  child: InkWell(
-                    onTap: () {
-                      print("Otobüs Seferleri");
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(
-                        0.0,
-                      ), // İçerik biraz ferah dursun
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
-                          Icon(
-                            Icons.directions_bus,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "Etkinlikler",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Card(
-                elevation: 4,
-                // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Container(
-                  // 2. ADIM: Hazır gradient'i buraya veriyoruz
-                  decoration: BoxDecoration(gradient: AppColors.cards),
-                  child: InkWell(
-                    onTap: () {
-                      print("Otobüs Seferleri");
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(
-                        0.0,
-                      ), // İçerik biraz ferah dursun
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
-                          Icon(
-                            Icons.directions_bus,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "Nöbetçi Eczaneler",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Card(
-                elevation: 4,
-                // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Container(
-                  // 2. ADIM: Hazır gradient'i buraya veriyoruz
-                  decoration: BoxDecoration(gradient: AppColors.cards),
-                  child: InkWell(
-                    onTap: () {
-                      print("Otobüs Seferleri");
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(
-                        0.0,
-                      ), // İçerik biraz ferah dursun
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
-                          Icon(
-                            Icons.directions_bus,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "Acil Numaralar",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(String title) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppColors.texts,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContentCard({
+    required String text,
+    Color? color,
+    Gradient? gradient,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: 100,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: color,
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
