@@ -72,9 +72,7 @@ def eczaneleri_cek():
                 
             ilce = ilce_etiketi.text.strip()
             
-            if "MERKEZ" not in ilce.upper():
-                continue
-
+         
             # verileri çekme
             
             link_etiketi = satir.find("a")
