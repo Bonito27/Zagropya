@@ -1,11 +1,11 @@
 import time
 import os
 
-# Modülleri içeri aktar
 try:
     import scraper_etkinlik
     import scraper_otobus  
     import scraper_eczane
+    import scraper_duyuru 
 except ImportError as e:
     print(f"dosyalar bulunamadı\nHata: {e}")
     exit()
@@ -27,7 +27,7 @@ def tum_sistemi_calistir():
 
     # otobüsler
     try:
-        print(" otobüs saatleri çekiliyor")
+        print("otobüs saatleri çekiliyor")
         # scraper_otobus dosyasındaki fonksiyonu çalıştır
         scraper_otobus.otobus_saatlerini_cek()
         print("otobüsler tamamlandı.\n")
@@ -38,10 +38,21 @@ def tum_sistemi_calistir():
 
     # eczaneler
     try:
-        print("⏳ Nöbetçi eczaneler çekiliyor...")
+        print("nöbetçi eczaneler çekiliyor")
         # scraper_eczane dosyasındaki fonksiyonu çalıştır
         scraper_eczane.eczaneleri_cek()
         print("eczaneler çekildi.\n")
+    except Exception as e:
+        print(f"veri çekiminde hata oluştu {e}\n")
+
+    time.sleep(1)
+
+    # duyurular
+    try:
+        print("son duyuru çekiliyor")
+        # scraper_duyuru dosyasındaki fonksiyonu çalıştır
+        scraper_duyuru.son_duyuruyu_cek()
+        print("duyuru alındı.\n")
     except Exception as e:
         print(f"veri çekiminde hata oluştu {e}\n")
 
