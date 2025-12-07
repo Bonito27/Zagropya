@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
+import 'package:ispartaapp/constants/announcement.dart';
 import 'package:ispartaapp/constants/profilepage.dart';
 import 'package:ispartaapp/constants/services.dart';
+import 'package:ispartaapp/services/colors.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -11,12 +13,12 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  Color bg = HexColor('#F7F7F9');
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
     MainPageContent(),
     ServicesPage(),
+    AnnouncementPage(),
     ProfilePage(),
   ];
   void _onItemTapped(int index) {
@@ -32,6 +34,9 @@ class _MainPageState extends State<MainPage> {
       home: SafeArea(
         child: Scaffold(
           bottomNavigationBar: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: HexColor('#F8F8FF '),
+            selectedIconTheme: IconThemeData(color: AppColors.primary),
             items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
                 icon: Icon(Icons.home),
@@ -42,15 +47,19 @@ class _MainPageState extends State<MainPage> {
                 label: 'Hizmetler',
               ),
               BottomNavigationBarItem(
+                icon: Icon(Icons.settings),
+                label: 'Duyurular',
+              ),
+              BottomNavigationBarItem(
                 icon: Icon(Icons.person),
                 label: 'Profil',
               ),
             ],
             currentIndex: _selectedIndex,
-            selectedItemColor: Colors.red,
+            selectedItemColor: AppColors.primary,
             onTap: _onItemTapped,
           ),
-          backgroundColor: bg,
+          backgroundColor: AppColors.bg,
           body: _pages[_selectedIndex],
         ),
       ),
@@ -93,8 +102,9 @@ class _MainPageContentState extends State<MainPageContent> {
                 Container(
                   width: 100,
                   height: 100,
-                  color: Colors.red,
+
                   margin: EdgeInsets.all(8),
+                  decoration: BoxDecoration(gradient: AppColors.cards),
                 ),
                 Container(
                   width: 100,
@@ -118,11 +128,11 @@ class _MainPageContentState extends State<MainPageContent> {
             ),
           ),
           GridView.count(
-            crossAxisCount: 2, // Yan yana kaç tane sığsın? (Senin tasarımda 2)
+            crossAxisCount: 2, //
             crossAxisSpacing: 12, // Yatay boşluk
             mainAxisSpacing: 12, // Dikey boşluk
             childAspectRatio:
-                2.8, // Kartların en/boy oranı (Dikdörtgen olması için)
+                2.3, // Kartların en/boy oranı (Dikdörtgen olması için)
             shrinkWrap: true, // İçindeki elemanlar kadar yer kaplasın
             physics:
                 const NeverScrollableScrollPhysics(), // Sayfanın kendi kaydırmasını kullansın
@@ -131,81 +141,169 @@ class _MainPageContentState extends State<MainPageContent> {
               // KARTLAR
               Card(
                 elevation: 4,
+                // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
+                clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadiusGeometry.circular(15),
-                ),
-                child: InkWell(
                   borderRadius: BorderRadius.circular(15),
-                  onTap: () {
-                    print("Otobüs Seferleri");
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.directions_bus, size: 30),
-                      SizedBox(width: 10),
-                      Text("Otobüs Seferleri"),
-                    ],
+                ),
+                child: Container(
+                  // 2. ADIM: Hazır gradient'i buraya veriyoruz
+                  decoration: BoxDecoration(gradient: AppColors.cards),
+                  child: InkWell(
+                    onTap: () {
+                      print("Otobüs Seferleri");
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(
+                        0.0,
+                      ), // İçerik biraz ferah dursun
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
+                          Icon(
+                            Icons.directions_bus,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            "Otobüs Seferleri",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
               Card(
                 elevation: 4,
+                // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
+                clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadiusGeometry.circular(15),
-                ),
-                child: InkWell(
                   borderRadius: BorderRadius.circular(15),
-                  onTap: () {
-                    print("Etkinlikler");
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.directions_bus, size: 30),
-                      SizedBox(width: 10),
-                      Text("Etkinlikler"),
-                    ],
+                ),
+                child: Container(
+                  // 2. ADIM: Hazır gradient'i buraya veriyoruz
+                  decoration: BoxDecoration(gradient: AppColors.cards),
+                  child: InkWell(
+                    onTap: () {
+                      print("Otobüs Seferleri");
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(
+                        0.0,
+                      ), // İçerik biraz ferah dursun
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
+                          Icon(
+                            Icons.directions_bus,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            "Etkinlikler",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
               Card(
                 elevation: 4,
+                // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
+                clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadiusGeometry.circular(15),
-                ),
-                child: InkWell(
                   borderRadius: BorderRadius.circular(15),
-                  onTap: () {
-                    print("Acil Numaralar");
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.directions_bus, size: 30),
-                      SizedBox(width: 10),
-                      Text("Acil Numaralar"),
-                    ],
+                ),
+                child: Container(
+                  // 2. ADIM: Hazır gradient'i buraya veriyoruz
+                  decoration: BoxDecoration(gradient: AppColors.cards),
+                  child: InkWell(
+                    onTap: () {
+                      print("Otobüs Seferleri");
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(
+                        0.0,
+                      ), // İçerik biraz ferah dursun
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
+                          Icon(
+                            Icons.directions_bus,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            "Nöbetçi Eczaneler",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
               Card(
                 elevation: 4,
+                // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
+                clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadiusGeometry.circular(15),
-                ),
-                child: InkWell(
                   borderRadius: BorderRadius.circular(15),
-                  onTap: () {
-                    print("Nöbetçi Eczaneler");
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.directions_bus, size: 30),
-                      SizedBox(width: 10),
-                      Text("Nöbetçi Eczaneler"),
-                    ],
+                ),
+                child: Container(
+                  // 2. ADIM: Hazır gradient'i buraya veriyoruz
+                  decoration: BoxDecoration(gradient: AppColors.cards),
+                  child: InkWell(
+                    onTap: () {
+                      print("Otobüs Seferleri");
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(
+                        0.0,
+                      ), // İçerik biraz ferah dursun
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
+                          Icon(
+                            Icons.directions_bus,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            "Acil Numaralar",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
