@@ -3,7 +3,6 @@ import os
 
 try:
     import scraper_etkinlik
-    import scraper_otobus  
     import scraper_eczane
     import scraper_duyuru 
 except ImportError as e:
@@ -24,17 +23,6 @@ def tum_sistemi_calistir():
         print(f"veri çekiminde hata oluştu {e}\n")
 
     time.sleep(1) # karışıklık olmasın diye bekleme
-
-    # otobüsler
-    try:
-        print("otobüs saatleri çekiliyor")
-        # scraper_otobus dosyasındaki fonksiyonu çalıştır
-        scraper_otobus.otobus_saatlerini_cek()
-        print("otobüsler tamamlandı.\n")
-    except Exception as e:
-        print(f"veri çekiminde hata oluştu {e}\n")
-
-    time.sleep(1)
 
     # eczaneler
     try:
