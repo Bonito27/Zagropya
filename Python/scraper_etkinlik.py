@@ -106,7 +106,7 @@ def veri_cek_final():
     klasor_yolu = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
     os.makedirs(klasor_yolu, exist_ok=True)
     
-    dosya_yolu = os.path.join(klasor_yolu, "konserler.json")
+    dosya_yolu = os.path.join(klasor_yolu, "etkinlik.json")
 
     #veriyi türkçe formatta kaydetme
     with open(dosya_yolu, "w", encoding="utf-8") as f:
