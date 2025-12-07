@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ispartaapp/services/colors.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -16,95 +17,158 @@ class _ServicesPageState extends State<ServicesPage> {
         body: Column(
           children: [
             GridView.count(
-              crossAxisCount:
-                  2, // Yan yana kaç tane sığsın? (Senin tasarımda 2)
-              crossAxisSpacing: 12, // Yatay boşluk
-              mainAxisSpacing: 12, // Dikey boşluk
-              childAspectRatio:
-                  2.8, // Kartların en/boy oranı (Dikdörtgen olması için)
-              shrinkWrap: true, // İçindeki elemanlar kadar yer kaplasın
-              physics:
-                  const NeverScrollableScrollPhysics(), // Sayfanın kendi kaydırmasını kullansın
-              padding: const EdgeInsets.all(10), // Kenar boşluğu
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 2.8,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(10),
               children: [
                 // KARTLAR
                 Card(
                   elevation: 4,
+                  clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadiusGeometry.circular(15),
-                  ),
-                  child: InkWell(
                     borderRadius: BorderRadius.circular(15),
-                    onTap: () {
-                      print("Otobüs Seferleri");
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.directions_bus, size: 30),
-                        SizedBox(width: 10),
-                        Text("Otobüs Seferleri"),
-                      ],
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(gradient: AppColors.cards),
+                    child: InkWell(
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.all(0.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.directions_bus,
+                              size: 30,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              "Otobüs Seferleri",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 Card(
                   elevation: 4,
+                  // 1. ÖNEMLİ: Gradient köşelerden taşmasın diye bunu ekliyoruz
+                  clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadiusGeometry.circular(15),
-                  ),
-                  child: InkWell(
                     borderRadius: BorderRadius.circular(15),
-                    onTap: () {
-                      print("Arıza Bildirim / Talep");
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.directions_bus, size: 30),
-                        SizedBox(width: 10),
-                        Text("Arıza Bildirim / Talep"),
-                      ],
+                  ),
+                  child: Container(
+                    // 2. ADIM: Hazır gradient'i buraya veriyoruz
+                    decoration: BoxDecoration(gradient: AppColors.cards),
+                    child: InkWell(
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.all(
+                          0.0,
+                        ), // İçerik biraz ferah dursun
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Arka plan renkli olduğu için ikon ve yazıyı beyaz yaptık
+                            Icon(
+                              Icons.directions_bus,
+                              size: 30,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              "Etkinlikler",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 Card(
                   elevation: 4,
+                  clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadiusGeometry.circular(15),
-                  ),
-                  child: InkWell(
                     borderRadius: BorderRadius.circular(15),
-                    onTap: () {
-                      print("Yeşil alanlar");
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.directions_bus, size: 30),
-                        SizedBox(width: 10),
-                        Text("Yeşil alanlar"),
-                      ],
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(gradient: AppColors.cards),
+                    child: InkWell(
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.all(0.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.directions_bus,
+                              size: 30,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              "Nöbetçi Eczaneler",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 Card(
                   elevation: 4,
+
+                  clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadiusGeometry.circular(15),
-                  ),
-                  child: InkWell(
                     borderRadius: BorderRadius.circular(15),
-                    onTap: () {
-                      print("Etkinlikler");
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.directions_bus, size: 30),
-                        SizedBox(width: 10),
-                        Text("Etkinlikler"),
-                      ],
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(gradient: AppColors.cards),
+                    child: InkWell(
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.all(0.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.directions_bus,
+                              size: 30,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              "Acil Numaralar",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
