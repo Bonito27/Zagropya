@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ispartaapp/services/bus_services.dart';
 import 'package:ispartaapp/services/colors.dart';
 
 class ServicesPage extends StatefulWidget {
@@ -32,7 +33,12 @@ class _ServicesPageState extends State<ServicesPage> {
                   title: "Otobüs Seferleri",
                   icon: Icons.directions_bus,
                   onTap: () {
-                    // Sayfa yönlendirmesi buraya gelecek
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BusServices(),
+                      ),
+                    );
                   },
                 ),
                 _buildServiceCard(

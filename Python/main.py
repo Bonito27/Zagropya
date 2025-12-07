@@ -1,5 +1,5 @@
 import time
-import os
+
 
 try:
     import scraper_etkinlik
