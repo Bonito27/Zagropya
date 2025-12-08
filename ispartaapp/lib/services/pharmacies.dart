@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // JSON okumak için
 import 'package:url_launcher/url_launcher.dart'; // Harita ve Telefon için
@@ -25,18 +25,25 @@ class _PharmaciesState extends State<Pharmacies> {
     _loadPharmacyData();
   }
 
-  // --- 1. JSON VERİSİNİ OKUMA VE ANALİZ ---
+  // --- 1. FIRESTORE'DAN VERİ ÇEKME VE ANALİZ ---
   Future<void> _loadPharmacyData() async {
     try {
-      final String response = await rootBundle.loadString(
-        'jsons/nobetci_eczaneler.json',
-      );
-      final List<dynamic> data = json.decode(response);
+      // 1. Firestore'dan Veri Çek
+      // Botumuz veriyi 'eczaneler' koleksiyonuna yazıyordu.
+      final snapshot = await FirebaseFirestore.instance
+          .collection('eczaneler')
+          .get(); // Tüm dökümanları çek
+
+      // Dökümanları List<Map> formatına çevir
+      final List<dynamic> data = snapshot.docs
+          .map((doc) => doc.data())
+          .toList();
 
       // İlçeleri analiz et (Tekrarları önlemek için Set kullanıyoruz)
       Set<String> districtSet = {};
       for (var item in data) {
-        if (item['ilce'] != null) {
+        // Data içindeki 'ilce' alanının varlığını ve null olmadığını kontrol et
+        if (item.containsKey('ilce') && item['ilce'] != null) {
           districtSet.add(item['ilce']);
         }
       }
@@ -45,6 +52,9 @@ class _PharmaciesState extends State<Pharmacies> {
       List<String> districtList = ["Tümü"];
       districtList.addAll(districtSet.toList()..sort());
 
+      print("✅ Firestore Eczane Bağlantısı Başarılı!");
+      print("Toplam Eczane: ${data.length}");
+
       setState(() {
         _allPharmacies = data;
         _filteredPharmacies = data; // Başlangıçta hepsi görünsün
@@ -52,9 +62,11 @@ class _PharmaciesState extends State<Pharmacies> {
         _isLoading = false;
       });
     } catch (e) {
-      print("JSON Okuma Hatası: $e");
+      print("🚨 HATA: Firestore Eczane Verisi okunamadı! -> $e");
+      // Hata durumunda yüklemeyi durdur ve kullanıcıyı bilgilendir
       setState(() {
         _isLoading = false;
+        // İsteğe bağlı olarak bir uyarı mesajı (Snackbar) gösterilebilir.
       });
     }
   }

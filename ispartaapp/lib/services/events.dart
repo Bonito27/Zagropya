@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // JSON okumak için
-import 'package:url_launcher/url_launcher.dart'; // İnternet araması için
-import 'package:ispartaapp/services/colors.dart'; // Renk dosyan
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:ispartaapp/services/colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Events extends StatefulWidget {
   const Events({super.key});
@@ -12,40 +12,54 @@ class Events extends StatefulWidget {
 }
 
 class _EventsState extends State<Events> {
-  List<dynamic> _allEvents = [];
-  List<dynamic> _filteredEvents = [];
+  // Veri tipleri artık Map<String, dynamic> olarak daha spesifik tanımlandı.
+  List<Map<String, dynamic>> _allEvents = [];
+  List<Map<String, dynamic>> _filteredEvents = [];
 
-  // --- YENİ: Benzersiz Sanatçı Listesi ---
   List<String> _uniqueArtists = [];
-  String? _selectedArtistFilter; // Seçilen sanatçı (Null ise hepsi)
+  String? _selectedArtistFilter;
 
-  // Filtre Kontrolcüleri
   final TextEditingController _searchController = TextEditingController();
+  // RangeValues başlangıçta 0'dan başlar.
   RangeValues _currentPriceRange = const RangeValues(0, 2000);
-  DateTime? _selectedDate; // Tarih seçimi için DateTime kullandık
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _loadEventData();
+    // Arama kutusunun değeri değiştikçe filtrelemeyi tetikle
+    _searchController.addListener(_runFilter);
   }
 
-  // --- 1. JSON OKUMA VE ANALİZ ---
-  // --- 1. JSON OKUMA VE ANALİZ (DÜZELTİLMİŞ HALİ) ---
+  @override
+  void dispose() {
+    _searchController.removeListener(_runFilter);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // --- 1. FIRESTORE'DAN VERİ ÇEKME VE ANALİZ (GÜVENLİ ERİŞİM EKLENDİ) ---
   Future<void> _loadEventData() async {
     try {
-      // 1. Dosyayı Oku
-      final String response = await rootBundle.loadString(
-        'jsons/etkinlik.json',
-      );
-      final List<dynamic> data = json.decode(response);
+      final snapshot = await FirebaseFirestore.instance
+          .collection('etkinlikler')
+          .get();
 
-      // 2. Sanatçıları Topla (Set kullanarak tekrarları engelliyoruz)
+      final List<Map<String, dynamic>> data = snapshot.docs
+          .map((doc) => doc.data())
+          .toList();
+
+      // 🔥 Hata ayıklama için ilk veriyi konsola yazdırın
+      if (data.isNotEmpty) {
+        print("✅ İlk Etkinlik Verisi: ${data[0]}");
+      }
+
       final Set<String> artistsSet = {};
 
       for (var event in data) {
-        // "sanatci" verisi var mı ve boş değil mi kontrol et
-        if (event.containsKey('sanatci') && event['sanatci'] != null) {
+        // Güvenli erişim: Alan var mı ve null değil mi?
+        if (event.containsKey('sanatci') && event['sanatci'] is String) {
           String artistName = event['sanatci'].toString().trim();
           if (artistName.isNotEmpty) {
             artistsSet.add(artistName);
@@ -53,70 +67,64 @@ class _EventsState extends State<Events> {
         }
       }
 
-      // 3. Listeyi Sırala
       List<String> sortedArtists = artistsSet.toList()..sort();
 
-      // 4. Ekrana Bas (Debug için konsola yazdırıyoruz)
-      print("Toplam Etkinlik: ${data.length}");
-      print("Bulunan Sanatçılar: $sortedArtists");
+      print("✅ Firestore Bağlantısı Başarılı! Toplam Etkinlik: ${data.length}");
 
-      // 5. State'i Güncelle
       setState(() {
         _allEvents = data;
-        _filteredEvents = data;
-        _uniqueArtists = sortedArtists; // Listeyi buraya atıyoruz
+        _filteredEvents = data; // Başlangıçta tüm veriyi göster
+        _uniqueArtists = sortedArtists;
       });
     } catch (e) {
-      print("HATA: JSON Verisi okunamadı! -> $e");
+      print("🚨 KRİTİK HATA: Firestore verisi okunamadı! -> $e");
+      // Hata durumunda boş liste gösterilir
+      setState(() {
+        _allEvents = [];
+        _filteredEvents = [];
+      });
     }
   }
 
-  // --- 2. FİLTRELEME MANTIĞI ---
+  // --- 2. FİLTRELEME MANTIĞI (GÜVENLİ ERİŞİM VE FİLTRE GÜNCELLEMESİ) ---
   void _runFilter() {
-    List<dynamic> results = _allEvents;
+    List<Map<String, dynamic>> results = _allEvents;
 
-    // A. Metin Arama (Arama çubuğu)
+    // A. Metin Arama
     if (_searchController.text.isNotEmpty) {
-      results = results
-          .where(
-            (event) =>
-                event["sanatci"].toString().toLowerCase().contains(
-                  _searchController.text.toLowerCase(),
-                ) ||
-                event["mekan"].toString().toLowerCase().contains(
-                  _searchController.text.toLowerCase(),
-                ),
-          )
-          .toList();
+      final lowerSearch = _searchController.text.toLowerCase();
+      results = results.where((event) {
+        // Güvenli erişim ile sanatçı veya mekan metinlerini ara
+        final artist = (event["sanatci"]?.toString() ?? '').toLowerCase();
+        final venue = (event["mekan"]?.toString() ?? '').toLowerCase();
+        return artist.contains(lowerSearch) || venue.contains(lowerSearch);
+      }).toList();
     }
 
-    // B. Sanatçı Seçimi (Dropdown)
+    // B. Sanatçı Seçimi
     if (_selectedArtistFilter != null) {
       results = results
           .where((event) => event["sanatci"] == _selectedArtistFilter)
           .toList();
     }
 
-    // C. Fiyat Filtresi
+    // C. Fiyat Filtresi (Fiyat alanı eksikse/null ise 0 olarak kabul edilir)
     results = results.where((event) {
-      String priceStr = event["price"].toString().replaceAll(
-        RegExp(r'[^0-9]'),
-        '',
-      );
+      final priceValue = event["fiyat"]?.toString() ?? '0';
+      // Sadece rakamları ayıkla
+      String priceStr = priceValue.replaceAll(RegExp(r'[^0-9]'), '');
+      // Sayıya çevir, çevrilemezse 0 kabul et
       int price = int.tryParse(priceStr) ?? 0;
+
       return price >= _currentPriceRange.start &&
           price <= _currentPriceRange.end;
     }).toList();
 
-    // D. Tarih Filtresi (Seçilen tarih metni içeriyor mu?)
+    // D. Tarih Filtresi (Sadece gün numarasını aratma mantığı korunmuştur)
     if (_selectedDate != null) {
-      // JSON'daki tarih formatı "24 Aralık Çar" gibi metinsel olduğu için
-      // basit bir gün/ay eşleşmesi yapıyoruz. Daha detaylı tarih parsing gerekebilir.
-      // Şimdilik kullanıcıya kolaylık olması için bu adımı atlıyoruz veya
-      // sadece gün numarasını aratıyoruz (Örn: "24").
       String day = _selectedDate!.day.toString();
       results = results
-          .where((event) => event['tarih'].toString().startsWith(day))
+          .where((event) => (event['tarih']?.toString() ?? '').startsWith(day))
           .toList();
     }
 
@@ -134,15 +142,19 @@ class _EventsState extends State<Events> {
     try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
-      print("Arama hatası: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Arama bağlantısı açılamadı.')),
+        );
+      }
     }
   }
 
-  // --- 4. GELİŞMİŞ FİLTRE MODALI ---
+  // --- 4. GELİŞMİŞ FİLTRE MODALI (Aynı kaldı) ---
   void _showFilterModal() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Tam ekran boyutu alabilmesi için
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -155,7 +167,7 @@ class _EventsState extends State<Events> {
               ),
               child: Container(
                 padding: const EdgeInsets.all(20),
-                height: 550, // Yüksekliği artırdık
+                height: 550,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -214,6 +226,7 @@ class _EventsState extends State<Events> {
                               value: null,
                               child: Text("Tüm Sanatçılar"),
                             ),
+                            // Sanatçı listesi boşsa hata vermez
                             ..._uniqueArtists.map((artist) {
                               return DropdownMenuItem(
                                 value: artist,
@@ -344,7 +357,6 @@ class _EventsState extends State<Events> {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         scrolledUnderElevation: 0.0,
-
         title: const Text("Isparta Etkinlikleri"),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -354,14 +366,13 @@ class _EventsState extends State<Events> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // GELİŞMİŞ ARAMA ÇUBUĞU (Filtre İkonu İçeride)
+            // GELİŞMİŞ ARAMA ÇUBUĞU
             TextField(
               controller: _searchController,
-              onChanged: (value) => _runFilter(),
+              // onChanged: (value) => _runFilter(), // Listener eklediğimiz için bu satırı kaldırdık
               decoration: InputDecoration(
                 hintText: 'Etkinlik ara...',
                 prefixIcon: const Icon(Icons.search),
-                // --- İŞTE BURASI: Filtre butonu aramanın içinde ---
                 suffixIcon: IconButton(
                   icon: Container(
                     padding: const EdgeInsets.all(8),
@@ -369,9 +380,7 @@ class _EventsState extends State<Events> {
                       color:
                           (_selectedArtistFilter != null ||
                               _selectedDate != null)
-                          ? AppColors.primary.withOpacity(
-                              0.2,
-                            ) // Filtre aktifse renkli
+                          ? AppColors.primary.withOpacity(0.2)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -388,7 +397,7 @@ class _EventsState extends State<Events> {
               ),
             ),
 
-            // Aktif Filtre Bilgisi (Opsiyonel: Kullanıcı neyi seçtiğini görsün)
+            // Aktif Filtre Bilgisi (Sanatçı)
             if (_selectedArtistFilter != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10, left: 5),
@@ -428,9 +437,12 @@ class _EventsState extends State<Events> {
                             color: Colors.grey[400],
                           ),
                           const SizedBox(height: 10),
-                          const Text(
-                            "Aradığınız kriterlere uygun etkinlik yok.",
-                            style: TextStyle(color: Colors.grey),
+                          Text(
+                            // Kullanıcı bir şey arıyorsa daha spesifik mesaj göster
+                            _allEvents.isEmpty
+                                ? "Veritabanında hiç etkinlik yok."
+                                : "Aradığınız kriterlere uygun etkinlik yok.",
+                            style: const TextStyle(color: Colors.grey),
                           ),
                         ],
                       ),
@@ -449,11 +461,18 @@ class _EventsState extends State<Events> {
     );
   }
 
-  // --- KART TASARIMI ---
-  Widget _buildEventCard(dynamic event) {
+  // --- KART TASARIMI (GÜVENLİ ERİŞİM EKLENDİ) ---
+  Widget _buildEventCard(Map<String, dynamic> event) {
+    // 🔥 Güvenli Erişim
+    final String artist = event['sanatci']?.toString() ?? 'Bilinmiyor';
+    final String venue = event['mekan']?.toString() ?? 'Mekan Yok';
+    final String date = event['tarih']?.toString() ?? 'Tarih Yok';
+    final String fiyat = event['fiyat']?.toString() ?? 'Ücretsiz/Bilinmiyor';
+    final String imageUrl = event['resim']?.toString() ?? '';
+
     return GestureDetector(
       onTap: () {
-        _searchOnGoogle(event['sanatci'], event['mekan']);
+        _searchOnGoogle(artist, venue);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
@@ -477,25 +496,37 @@ class _EventsState extends State<Events> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(20),
                   ),
-                  child: Image.network(
-                    event['image'],
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 180,
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: Icon(
-                            Icons.image,
-                            size: 50,
-                            color: Colors.grey,
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 180,
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Icon(
+                                  Icons.broken_image, // Resim yüklenemedi ikonu
+                                  size: 50,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          height: 180,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Icon(
+                              Icons.image_not_supported,
+                              size: 50,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
-                      );
-                    },
-                  ),
                 ),
                 // Fiyat Etiketi (Resmin üzerinde sağ üstte)
                 Positioned(
@@ -511,7 +542,7 @@ class _EventsState extends State<Events> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      event['price'],
+                      fiyat, // Güvenli değişkenden çekildi
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -528,7 +559,7 @@ class _EventsState extends State<Events> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    event['tarih'],
+                    date, // Güvenli değişkenden çekildi
                     style: TextStyle(
                       color: AppColors.secondary,
                       fontWeight: FontWeight.w600,
@@ -537,7 +568,7 @@ class _EventsState extends State<Events> {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    event['sanatci'],
+                    artist, // Güvenli değişkenden çekildi
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -555,7 +586,7 @@ class _EventsState extends State<Events> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          event['mekan'],
+                          venue, // Güvenli değişkenden çekildi
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 13,
