@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ispartaapp/constants/announcement.dart';
+import 'package:ispartaapp/constants/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -183,8 +186,8 @@ class _MainPageState extends State<MainPage> {
     // Bu sayfa sınıflarının tanımlandığından emin olun:
     // const ServicesPage(),
     // const AnnouncementPage(),
-    const Placeholder(), // ServicesPage yerine geçici
-    const Placeholder(), // AnnouncementPage yerine geçici
+    const ServicesPage(), // ServicesPage yerine geçici
+    const AnnouncementPage(), // AnnouncementPage yerine geçici
   ];
 
   void _onItemTapped(int index) {
