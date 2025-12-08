@@ -5,16 +5,10 @@ import 'package:ispartaapp/constants/mainpage.dart';
 import 'firebase_options.dart';
 
 void main() async {
-  // <-- 3. BURAYA 'async' EKLE
-  // Flutter motorunu başlat (Async işlemler için şart)
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- SENİN VERDİĞİN KOD BURAYA GELECEK ---
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  ); // -----------------------------------------
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Tam ekran modu (Daha önce eklemiştik)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   runApp(const MainPage());

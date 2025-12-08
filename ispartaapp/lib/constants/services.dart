@@ -152,8 +152,8 @@ class _ServicesPageState extends State<ServicesPage> {
       },
       child: Container(
         decoration: BoxDecoration(
-          gradient: AppColors.cards, // Senin tanımladığın gradient
-          borderRadius: BorderRadius.circular(20), // Köşeleri daha oval yaptık
+          gradient: AppColors.cards, //
+          borderRadius: BorderRadius.circular(20), // Köşeler daha oval
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.2), // Hafif gölge
