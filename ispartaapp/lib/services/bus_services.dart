@@ -25,8 +25,10 @@ class _BusServicesState extends State<BusServices> {
   Future<void> _loadBusData() async {
     try {
       // JSON dosya yolunu buraya tam olarak yazıyoruz
+      // NOT: Dosya yolunun pubspec.yaml ile uyumlu olduğundan emin ol.
+
       final String response = await rootBundle.loadString(
-        '../Python/assets/otobus_saatleri.json',
+        'jsons/otobus_saatleri.json',
       );
       final List<dynamic> data = json.decode(response);
 
@@ -61,8 +63,44 @@ class _BusServicesState extends State<BusServices> {
 
   // Saatleri "Dakika" cinsine çevirir (Karşılaştırma yapmak için)
   int _timeToMinutes(String time) {
-    final parts = time.split(':');
-    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    try {
+      final parts = time.split(':');
+      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // --- YENİ EKLENEN: Liste Kartı İçin Durum Metni ---
+  String _getBusStatusText(List<dynamic> rawTimes) {
+    List<String> times = rawTimes.map((e) => e.toString()).toSet().toList();
+    times.sort((a, b) => _timeToMinutes(a).compareTo(_timeToMinutes(b)));
+
+    if (times.isEmpty) return "Sefer yok";
+
+    final now = DateTime.now();
+    final currentMinutes = now.hour * 60 + now.minute;
+
+    final firstBusMinutes = _timeToMinutes(times.first);
+    final lastBusMinutes = _timeToMinutes(times.last);
+
+    // Durum 1: Henüz seferler başlamadı (Sabah erken)
+    if (currentMinutes < firstBusMinutes) {
+      return "Henüz sefer başlamadı. İlk Sefer: ${times.first}";
+    }
+    // Durum 2: Seferler bitti (Gece geç)
+    else if (currentMinutes > lastBusMinutes) {
+      return "Seferler tamamlandı. Son Sefer: ${times.last}";
+    }
+    // Durum 3: Gün içi (Sıradaki seferi göster)
+    else {
+      for (var time in times) {
+        if (_timeToMinutes(time) >= currentMinutes) {
+          return "Sıradaki Sefer: $time";
+        }
+      }
+      return "Seferler tamamlandı";
+    }
   }
 
   // Detay Penceresini Açan Fonksiyon (Saatleri Gösterir)
@@ -71,24 +109,28 @@ class _BusServicesState extends State<BusServices> {
     String title,
     List<dynamic> rawTimes,
   ) {
-    // 1. Saatleri Temizle: Tekrarlayanları kaldır ve String'e çevir
+    // 1. Saatleri Temizle ve Sırala
     List<String> times = rawTimes.map((e) => e.toString()).toSet().toList();
-
-    // 2. Saatleri Sırala (Sabah 07:00, akşam 19:00'dan önce gelsin)
     times.sort((a, b) => _timeToMinutes(a).compareTo(_timeToMinutes(b)));
 
-    // 3. Şu anki saati al
+    // 2. Şu anki saati al
     final now = DateTime.now();
     final currentMinutes = now.hour * 60 + now.minute;
 
-    // 4. En yakın gelecek saati bul
+    // 3. En yakın gelecek saati ve indexini bul
     String? nextBusTime;
-    for (var time in times) {
-      if (_timeToMinutes(time) >= currentMinutes) {
-        nextBusTime = time;
-        break; // İlk bulduğumuz gelecek saat, en yakın saattir.
+    int targetIndex = 0; // Kaydırma yapılacak hedef index
+
+    for (int i = 0; i < times.length; i++) {
+      if (_timeToMinutes(times[i]) >= currentMinutes) {
+        nextBusTime = times[i];
+        targetIndex = i;
+        break;
       }
     }
+
+    // Scroll Controller (Otomatik kaydırma için)
+    final ScrollController scrollController = ScrollController();
 
     showModalBottomSheet(
       context: context,
@@ -96,12 +138,28 @@ class _BusServicesState extends State<BusServices> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
+        // --- YENİ EKLENEN: Otomatik Kaydırma Mantığı ---
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (scrollController.hasClients && nextBusTime != null) {
+            // Grid yapısında satır sayısını hesapla (4 sütunlu olduğu için 4'e bölüyoruz)
+            // Her satırın yaklaşık yüksekliği + boşluk ile çarpıyoruz (Örn: 50px)
+            double offset = (targetIndex / 4).floor() * 50.0;
+
+            // Eğer listenin sonlarına doğruysa offset hatası vermemesi için clamp kullanılır
+            // Ama basitçe animateTo çoğu durumda iş görür.
+            scrollController.animateTo(
+              offset,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+
         return Container(
           padding: const EdgeInsets.all(20),
           height: 500,
           child: Column(
             children: [
-              // Başlık
               Text(
                 "$title Hareket Saatleri",
                 style: TextStyle(
@@ -113,8 +171,6 @@ class _BusServicesState extends State<BusServices> {
               const SizedBox(height: 10),
               const Divider(),
               const SizedBox(height: 10),
-
-              // Renk Açıklamaları (Lejant)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -126,12 +182,11 @@ class _BusServicesState extends State<BusServices> {
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Saatler Izgarası
               Expanded(
                 child: GridView.builder(
+                  controller: scrollController, // Controller'ı buraya bağladık
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4, // Yan yana 4 saat
+                    crossAxisCount: 4,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     childAspectRatio: 2.0,
@@ -141,20 +196,16 @@ class _BusServicesState extends State<BusServices> {
                     final timeStr = times[index];
                     final timeMinutes = _timeToMinutes(timeStr);
 
-                    // RENK MANTIĞI
                     Color bgColor;
                     Color textColor;
 
                     if (timeStr == nextBusTime) {
-                      // En yakın saat (YEŞİL)
                       bgColor = Colors.green;
                       textColor = Colors.white;
                     } else if (timeMinutes < currentMinutes) {
-                      // Geçmiş saat (GRİ)
                       bgColor = Colors.grey.shade300;
                       textColor = Colors.grey.shade700;
                     } else {
-                      // Gelecek diğer saatler (SİYAH/BEYAZ)
                       bgColor = Colors.white;
                       textColor = Colors.black;
                     }
@@ -184,7 +235,6 @@ class _BusServicesState extends State<BusServices> {
     );
   }
 
-  // Renk açıklaması için küçük yardımcı widget
   Widget _legendItem(Color color, String text) {
     return Row(
       children: [
@@ -204,6 +254,7 @@ class _BusServicesState extends State<BusServices> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
+        scrolledUnderElevation: 0.0,
         title: const Text("Otobüs Hatları"),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -213,7 +264,6 @@ class _BusServicesState extends State<BusServices> {
         padding: const EdgeInsets.all(15.0),
         child: Column(
           children: [
-            // Arama Çubuğu
             TextField(
               controller: _searchController,
               onChanged: (value) => _runFilter(value),
@@ -228,8 +278,6 @@ class _BusServicesState extends State<BusServices> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Hat Listesi
             Expanded(
               child: _filteredBusLines.isEmpty
                   ? const Center(child: Text("Hat bulunamadı"))
@@ -237,6 +285,17 @@ class _BusServicesState extends State<BusServices> {
                       itemCount: _filteredBusLines.length,
                       itemBuilder: (context, index) {
                         final line = _filteredBusLines[index];
+                        // Her satır için durum metnini hesapla
+                        String statusText = _getBusStatusText(line['saatler']);
+
+                        // Duruma göre renk belirle (Opsiyonel: Görsellik katar)
+                        Color statusColor = Colors.grey;
+                        if (statusText.contains("Sıradaki")) {
+                          statusColor = Colors.green;
+                        } else if (statusText.contains("Henüz")) {
+                          statusColor = Colors.orange;
+                        }
+
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
                           elevation: 2,
@@ -266,13 +325,24 @@ class _BusServicesState extends State<BusServices> {
                                 fontSize: 16,
                               ),
                             ),
+                            // --- YENİ EKLENEN: Alt Başlık (Durum Bilgisi) ---
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                statusText,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
                             trailing: const Icon(
                               Icons.arrow_forward_ios,
                               size: 16,
                               color: Colors.grey,
                             ),
                             onTap: () {
-                              // Karta basınca saatleri göster
                               _showBusTimes(
                                 context,
                                 line['hat_adi'],

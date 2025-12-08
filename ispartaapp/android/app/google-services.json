@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "551839504562",
+    "project_id": "ispartaapp",
+    "storage_bucket": "ispartaapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:551839504562:android:a70b84579622c07f8d91ab",
+        "android_client_info": {
+          "package_name": "com.example.ispartaapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "551839504562-iieg0ac4hm924sbt0ms8966sdpagrp0n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-gOcnlT2j28dysVwN4GJjom_-_yU2_H4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "551839504562-iieg0ac4hm924sbt0ms8966sdpagrp0n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

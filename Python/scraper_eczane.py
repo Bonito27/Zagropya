@@ -4,11 +4,11 @@ import json
 import os 
 import urllib3 
 
-# sertifika hatalarını gizleme
+# Sertifika hatalarını gizleme (Site bazen SSL hatası verebiliyor)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 url = "https://www.eczaneler.gen.tr/nobetci-isparta"
 
-#chorome gibi gözükmek için header
+# Chrome gibi gözükmek için header
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
 }
@@ -16,9 +16,9 @@ headers = {
 def eczaneleri_cek():
     print(f"Bağlanılıyor: {url}")
     
-    #siteye bağlanma
+    # Siteye bağlanma
     try:
-        # güvenlik sertifikası eski olsada kabul et
+        # Güvenlik sertifikası eski olsa da kabul et (verify=False)
         response = requests.get(url, headers=headers, timeout=15, verify=False)
         
         if response.status_code != 200:
@@ -30,10 +30,8 @@ def eczaneleri_cek():
 
     soup = BeautifulSoup(response.content, "html.parser")
     
-    #günü bulma filtre
-    # sitede 3 günün hepsi aynı anda yükleniyor
-    #bugünün tarihinde img var
-    #img olanı filtreleme
+    # Günü bulma filtresi
+    # Sitede 3 günün hepsi aynı anda yükleniyor, bugünün tarihinde 'img' ikonu var.
     tab_linkleri = soup.find_all("a", class_="nav-link")
     aktif_tab_id = None
     
@@ -44,37 +42,35 @@ def eczaneleri_cek():
             href_degeri = link.get("href")
             if href_degeri:
                 aktif_tab_id = href_degeri.replace("#", "") 
-                print(f"Aktif Sekme Tespit Edildi: {aktif_tab_id}")
+                print(f"Aktif Sekme (Bugün) Tespit Edildi: {aktif_tab_id}")
                 break
     
-    # ikon bulunmazsa nav bugun kullan
+    # İkon bulunmazsa varsayılan olarak 'nav-bugun' kullan
     if not aktif_tab_id:
         aktif_tab_id = "nav-bugun"
 
-    # aramayı daraltma
+    # Aramayı daraltma (Sadece bugünün kutusuna bak)
     aktif_kutu = soup.find("div", id=aktif_tab_id)
     
     if not aktif_kutu:
         print("Hata: İçerik kutusu bulunamadı.")
         return
 
-    # sadece aktif kutunun içindeki satırları al
+    # Sadece aktif kutunun içindeki satırları al
     eczane_satirlari = aktif_kutu.find_all("div", class_="row")
-    print(f"Bu sekmede {len(eczane_satirlari)} satır veri işleniyor.")
+    print(f"Bu sekmede {len(eczane_satirlari)} adet nöbetçi eczane işleniyor.")
     
     eczane_listesi = []
 
     for satir in eczane_satirlari:
         try:
-            # ilçe merkez filtresi
+            # İlçe/Merkez filtresi (Genelde 'Isparta' veya ilçe adı yazar)
             ilce_etiketi = satir.find("span", class_="bg-info")
             if not ilce_etiketi: continue
                 
             ilce = ilce_etiketi.text.strip()
             
-         
-            # verileri çekme
-            
+            # Verileri çekme
             link_etiketi = satir.find("a")
             if not link_etiketi: continue
             
@@ -87,15 +83,16 @@ def eczaneleri_cek():
                 telefon = sutunlar[1].text.strip()
             elif len(sutunlar) == 1:
                 telefon = sutunlar[0].text.strip()
+            
             adres_sutunu = satir.find("div", class_="col-lg-6")
             if adres_sutunu:
                 raw_adres = adres_sutunu.text.strip()
-                # adresden ilçe ismini temizle
+                # Adresten ilçe ismini temizle ki tekrar etmesin
                 adres = raw_adres.replace(ilce, "").strip()
             else:
                 adres = "Adres Belirtilmemiş"
 
-            # listeye ekle
+            # Listeye ekle
             veri = {
                 "eczane_adi": eczane_adi,
                 "telefon": telefon,
@@ -108,18 +105,31 @@ def eczaneleri_cek():
         except Exception as e:
             continue
 
-    # json kaydetme
-    klasor_yolu = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
-    os.makedirs(klasor_yolu, exist_ok=True)
+    # --- JSON OLARAK KAYDETME (FLUTTER PROJESİ İÇİNE) ---
     
-    dosya_yolu = os.path.join(klasor_yolu, "nobetci_eczaneler.json")
+    # 1. Şu anki Python dosyasının yerini bul
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # 2. Bir üst klasöre çık ve 'ispartaapp/assets' klasörüne git
+    target_folder = os.path.join(current_dir, "..", "ispartaapp", "jsons")
+    
+    # 3. Yolu düzelt (Windows/Mac uyumu için)
+    target_folder = os.path.normpath(target_folder)
 
+    # 4. Klasör yoksa oluştur
+    os.makedirs(target_folder, exist_ok=True)
+    
+    # 5. Dosya yolu
+    dosya_yolu = os.path.join(target_folder, "nobetci_eczaneler.json")
+
+    # 6. Kaydet
     with open(dosya_yolu, "w", encoding="utf-8") as f:
         json.dump(eczane_listesi, f, ensure_ascii=False, indent=4)
         
     print("-" * 30)
-    print(f"İşlem Tamam! {aktif_tab_id} sekmesindeki {len(eczane_listesi)} nöbetçi eczane kaydedildi.")
-    print(f"Kayıt Yeri: {dosya_yolu}")
+    print(f"BAŞARILI! Dosya şuraya kaydedildi:")
+    print(f"📂 {dosya_yolu}")
+    print(f"Toplam {len(eczane_listesi)} eczane kaydedildi.")
 
 if __name__ == "__main__":
     eczaneleri_cek()

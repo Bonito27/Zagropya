@@ -20,6 +20,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   hexcolor: ^3.0.2
   http: ^1.6.0
+  url_launcher: ^6.3.2
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
 
 dev_dependencies:
   flutter_test:

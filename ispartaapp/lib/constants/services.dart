@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:ispartaapp/services/bus_services.dart';
 import 'package:ispartaapp/services/colors.dart';
+import 'package:ispartaapp/services/emergy_numbers.dart';
+import 'package:ispartaapp/services/events.dart';
+import 'package:ispartaapp/services/pharmacies.dart';
+import 'package:ispartaapp/services/tourist_attractions.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -15,7 +20,7 @@ class _ServicesPageState extends State<ServicesPage> {
     return SafeArea(
       child: Scaffold(
         backgroundColor: AppColors.bg,
-        appBar: AppBar(title: const Text("Hizmetlerimiz")),
+
         body: Padding(
           padding: const EdgeInsets.all(15.0), // Kenar boşluğunu biraz artırdık
           child: Center(
@@ -28,6 +33,7 @@ class _ServicesPageState extends State<ServicesPage> {
               childAspectRatio: 1.1,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+
               children: [
                 _buildServiceCard(
                   title: "Otobüs Seferleri",
@@ -44,27 +50,55 @@ class _ServicesPageState extends State<ServicesPage> {
                 _buildServiceCard(
                   title: "Etkinlikler",
                   icon: Icons.calendar_month,
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Events()),
+                    );
+                  },
                 ),
                 _buildServiceCard(
                   title: "Nöbetçi Eczaneler",
                   icon: Icons.local_pharmacy,
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const Pharmacies(),
+                      ),
+                    );
+                  },
                 ),
                 _buildServiceCard(
                   title: "Acil Numaralar",
                   icon: Icons.phone_in_talk,
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EmergyNumbers(),
+                      ),
+                    );
+                  },
                 ),
                 _buildServiceCard(
                   title: "Gezilecek Yerler",
                   icon: Icons.map_outlined,
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TouristAttractions(),
+                      ),
+                    );
+                  },
                 ),
                 _buildServiceCard(
-                  title: "Arıza Bildir",
+                  title: "Arıza/Talep  Bildir",
                   icon: Icons.build_circle,
-                  onTap: () {},
+                  onTap: () {
+                    _openWhatsApp(); // <--
+                  },
                 ),
               ],
             ),
@@ -72,6 +106,37 @@ class _ServicesPageState extends State<ServicesPage> {
         ),
       ),
     );
+  }
+
+  // Güncellenmiş ve Garantili WhatsApp Fonksiyonu
+  Future<void> _openWhatsApp() async {
+    // Numara formatı: 90 + 539... (Başında 0 olmadan, boşluksuz)
+    String phoneNumber = "905397217332";
+    String message = "Merhaba, bilgi almak istiyorum.";
+
+    // 1. Evrensel Link Oluştur (Hem uygulama hem tarayıcı anlar)
+    final Uri url = Uri.parse(
+      "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}",
+    );
+
+    try {
+      // 2. Önce Direkt Uygulamayı (WhatsApp) Açmayı Dene
+      // 'externalApplication': İşletim sistemine bu linki bir uygulama ile açmasını emreder.
+      bool launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        // Eğer false dönerse hata fırlat ki aşağıdaki catch bloğuna düşsün
+        throw 'Uygulama başlatılamadı';
+      }
+    } catch (e) {
+      // 3. Hata Oluşursa (Uygulama yoksa) Tarayıcıda Aç
+
+      // 'platformDefault': İşletim sisteminin varsayılan davranışını (Tarayıcıyı) kullanır.
+      await launchUrl(url, mode: LaunchMode.platformDefault);
+    }
   }
 
   Widget _buildServiceCard({

@@ -1,0 +1,5 @@
+firebase-functions
+firebase-admin
+requests
+beautifulsoup4
+urllib3

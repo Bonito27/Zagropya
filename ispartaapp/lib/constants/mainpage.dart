@@ -4,7 +4,6 @@ import 'package:hexcolor/hexcolor.dart';
 import 'package:http/http.dart' as http; // İnternet isteği için gerekli
 
 import 'package:ispartaapp/constants/announcement.dart';
-import 'package:ispartaapp/constants/profilepage.dart';
 import 'package:ispartaapp/constants/services.dart';
 import 'package:ispartaapp/services/colors.dart';
 
@@ -22,7 +21,6 @@ class _MainPageState extends State<MainPage> {
     const MainPageContent(),
     const ServicesPage(),
     const AnnouncementPage(),
-    const ProfilePage(),
   ];
 
   void _onItemTapped(int index) {
@@ -37,6 +35,12 @@ class _MainPageState extends State<MainPage> {
       debugShowCheckedModeBanner: false,
       home: SafeArea(
         child: Scaffold(
+          appBar: AppBar(
+            scrolledUnderElevation: 0.0,
+
+            title: const Text("Isparta App"),
+            backgroundColor: AppColors.bg,
+          ),
           backgroundColor: AppColors.bg,
           body: _pages[_selectedIndex],
           bottomNavigationBar: BottomNavigationBar(
@@ -59,10 +63,6 @@ class _MainPageState extends State<MainPage> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.notifications),
                 label: 'Duyurular',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Profil',
               ),
             ],
           ),
