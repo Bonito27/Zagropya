@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ispartaapp/constants/announcement.dart';
 import 'package:ispartaapp/constants/services.dart';
+import 'package:ispartaapp/services/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -208,11 +209,12 @@ class _MainPageState extends State<MainPage> {
           appBar: AppBar(
             scrolledUnderElevation: 0.0,
             title: const Text("Isparta App"),
+            centerTitle: true,
             // backgroundColor: AppColors.bg, // Eğer AppColors tanımlı değilse bu satırı yoruma alın
-            backgroundColor: Colors.white, // Geçici
+            backgroundColor: AppColors.bg, // Geçici
           ),
           // backgroundColor: AppColors.bg, // Eğer AppColors tanımlı değilse bu satırı yoruma alın
-          backgroundColor: Colors.white, // Geçici
+          backgroundColor: AppColors.bg, // Geçici
           body: _pages[_selectedIndex],
           bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Tam ekran için
-import 'package:firebase_core/firebase_core.dart'; // <-- 1. BU PAKETİ EKLE
+import 'package:firebase_core/firebase_core.dart';
 import 'package:ispartaapp/constants/mainpage.dart';
-import 'firebase_options.dart'; // <-- 2. BU DOSYAYI İMPORT ET (Hata verirse aşağıyı oku)
+import 'firebase_options.dart';
 
 void main() async {
   // <-- 3. BURAYA 'async' EKLE

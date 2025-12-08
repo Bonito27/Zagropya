@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart'; // url_launcher eklendi
+import 'package:url_launcher/url_launcher.dart';
 
-// Duyuru modeli (Alan adları Firebase'inize göre günceldir)
+// Duyuru modeli (Aynı kaldı)
 class Announcement {
   final String id;
-  final String title; // baslik alanını alır
-  final String link; // link alanını alır
-  final DateTime date; // tarih alanını alır
+  final String title;
+  final String link;
+  final DateTime date;
 
   Announcement({
     required this.id,
@@ -21,7 +21,7 @@ class Announcement {
     return Announcement(
       id: doc.id,
       title: data['baslik'] ?? 'Başlıksız Duyuru',
-      link: data['link'] ?? '', // 'link' alanını içerik yerine tutuyoruz
+      link: data['link'] ?? '',
       date: (data['tarih'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -34,6 +34,7 @@ class AnnouncementPage extends StatefulWidget {
   State<AnnouncementPage> createState() => _AnnouncementPageState();
 }
 
+// Sıralama seçenekleri (Aynı kaldı)
 enum SortOrder { newestFirst, oldestFirst }
 
 class _AnnouncementPageState extends State<AnnouncementPage> {
@@ -41,12 +42,14 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
   String _searchText = '';
   SortOrder _currentSortOrder = SortOrder.newestFirst;
 
-  // URL Açma Fonksiyonu
+  // Isparta Valiliği Duyurular URL'si (Tıklamada kullanılacak sabit URL)
+  final String _ispartaGovDuyurularUrl = "http://www.isparta.gov.tr/duyurular";
+
+  // URL Açma Fonksiyonu (Aynı kaldı)
   Future<void> _launchUrl(String urlString) async {
     final Uri url = Uri.parse(urlString);
-    if (!await launchUrl(url)) {
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) {
-        // Hata durumunda kullanıcıya bilgi ver
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Hata: Duyuru linki açılamadı: $urlString')),
         );
@@ -54,7 +57,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
     }
   }
 
-  // Stream sorgusu (Önceki haliyle aynı, alan adları 'tarih' ve 'baslik' ile çalışıyor)
+  // Stream sorgusu (Aynı kaldı)
   Stream<List<Announcement>> _announcementsStream() {
     Query query = _firestore.collection('duyurular');
 
@@ -73,7 +76,6 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
       } else {
         final lowerCaseSearch = _searchText.toLowerCase();
         return allAnnouncements.where((announcement) {
-          // Arama artık 'title' (yani 'baslik') ve 'link' alanlarında yapılıyor
           return announcement.title.toLowerCase().contains(lowerCaseSearch) ||
               announcement.link.toLowerCase().contains(lowerCaseSearch);
         }).toList();
@@ -81,66 +83,96 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
     });
   }
 
+  // Tarih formatlama yardımcı metodu (Aynı kaldı)
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
-          // Arama Çubuğu
+          // 🔥🔥🔥 ARAMA ÇUBUĞU VE SIRALAMA ENTEGRASYONU 🔥🔥🔥
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
             child: TextField(
-              decoration: const InputDecoration(
-                labelText: 'Duyuru Ara (Başlık/Link)',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
               onChanged: (value) {
                 setState(() {
                   _searchText = value;
                 });
               },
-            ),
-          ),
-          // Sıralama Seçeneği
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Text('Sırala:'),
-                const SizedBox(width: 8.0),
-                DropdownButton<SortOrder>(
-                  value: _currentSortOrder,
-                  icon: const Icon(Icons.filter_list),
-                  underline: Container(),
-                  onChanged: (SortOrder? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _currentSortOrder = newValue;
-                      });
-                    }
-                  },
-                  items: const <DropdownMenuItem<SortOrder>>[
-                    DropdownMenuItem(
-                      value: SortOrder.newestFirst,
-                      child: Text('Yeniden Eskiye'),
-                    ),
-                    DropdownMenuItem(
-                      value: SortOrder.oldestFirst,
-                      child: Text('Eskiden Yeniye'),
-                    ),
-                  ],
+              decoration: InputDecoration(
+                hintText: 'Duyuru Ara (Başlık/Link)',
+                prefixIcon: const Icon(Icons.search),
+                // Oval şekil için ayar
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30.0),
+                  borderSide: BorderSide.none,
                 ),
-              ],
+                filled: true,
+                fillColor: Colors.grey[100],
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 10.0,
+                  horizontal: 20.0,
+                ),
+
+                // Sıralama Butonu (Suffix Icon)
+                suffixIcon: PopupMenuButton<SortOrder>(
+                  icon: Icon(Icons.sort, color: Colors.blue),
+                  onSelected: (SortOrder result) {
+                    setState(() {
+                      _currentSortOrder = result;
+                    });
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<SortOrder>>[
+                        PopupMenuItem<SortOrder>(
+                          value: SortOrder.newestFirst,
+                          child: Text(
+                            'Yeniden Eskiye (Seçili)',
+                            style: TextStyle(
+                              fontWeight:
+                                  _currentSortOrder == SortOrder.newestFirst
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: _currentSortOrder == SortOrder.newestFirst
+                                  ? Colors.blue
+                                  : Colors.black,
+                            ),
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        PopupMenuItem<SortOrder>(
+                          value: SortOrder.oldestFirst,
+                          child: Text(
+                            'Eskiden Yeniye',
+                            style: TextStyle(
+                              fontWeight:
+                                  _currentSortOrder == SortOrder.oldestFirst
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: _currentSortOrder == SortOrder.oldestFirst
+                                  ? Colors.blue
+                                  : Colors.black,
+                            ),
+                          ),
+                        ),
+                      ],
+                ),
+              ),
             ),
           ),
+
           // Duyuru Listesi
           Expanded(
             child: StreamBuilder<List<Announcement>>(
               stream: _announcementsStream(),
               builder: (context, snapshot) {
-                // ... (Hata ve yükleme durumları aynı)
+                // ... (Hata ve yükleme durumları aynı) ...
                 if (snapshot.hasError) {
                   return Center(child: Text('Hata: ${snapshot.error}'));
                 }
@@ -156,47 +188,57 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                 final announcements = snapshot.data!;
 
                 return ListView.separated(
-                  // ListView.builder yerine ListView.separated kullandık
-                  // Böylece araya çizgi (Divider) koyarak boşluk ekleyebiliriz.
                   itemCount: announcements.length,
-                  separatorBuilder: (context, index) => const Divider(
-                    height: 1.0, // Varsayılan boşluğu ayarlar
-                    color: Colors.grey,
-                    indent: 16.0,
-                    endIndent: 16.0,
+                  // 🔥 Kartlar arasındaki boşluğu artırdık
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 10.0),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8.0,
+                    horizontal: 16.0,
                   ),
+
                   itemBuilder: (context, index) {
                     final announcement = announcements[index];
                     return Card(
-                      // Card'ın kenar boşluğunu biraz azalttık
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 4.0,
-                        vertical: 2.0,
+                      elevation: 3, // Daha belirgin gölge
+                      // 🔥 Kartın genel görünüm boşluğunu düzenledik
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
                       ),
                       child: ListTile(
-                        // Başlıkların tamamının görünmesi için wrap ayarı
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
+
                         title: Text(
                           announcement.title,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          maxLines: 3, // Başlık uzunsa 3 satıra kadar sığdır
-                          overflow:
-                              TextOverflow.ellipsis, // Taşarsa sonuna ... koy
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16.0,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          // Link yerine sadece Tarih bilgisini gösteriyoruz
+                          padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
                             'Yayınlanma Tarihi: ${_formatDate(announcement.date)}',
-                            style: TextStyle(color: Colors.grey[700]),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13.0,
+                            ),
                           ),
                         ),
                         trailing: const Icon(
                           Icons.open_in_new,
-                        ), // Link açılacağını belirten ikon
-                        // 🔥🔥🔥 Tıklama Özelliği (Link Açma) 🔥🔥🔥
+                          color: Colors.blue,
+                        ),
                         onTap: () {
+                          // Duyuru linki var ise sabit Valilik sayfasına yönlendir
                           if (announcement.link.isNotEmpty) {
-                            _launchUrl("http://www.isparta.gov.tr/duyurular");
+                            _launchUrl(_ispartaGovDuyurularUrl);
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -217,10 +259,5 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
         ],
       ),
     );
-  }
-
-  // Tarih formatlama yardımcı metodu
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
