@@ -7,7 +7,6 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 
 # --- 1. FIREBASE BAĞLANTISI ---
-# serviceAccountKey.json dosyasının bu kodla AYNI KLASÖRDE olması şarttır.
 try:
     cred = credentials.Certificate("serviceAccountKey.json")
     firebase_admin.initialize_app(cred)
@@ -190,7 +189,6 @@ def etkinlikleri_cek():
             except: continue
 
         if etkinlik_listesi:
-            # Firestore'a gönder (Koleksiyon adı: etkinlikler)
             firestore_guncelle("etkinlikler", etkinlik_listesi)
 
     except Exception as e:
