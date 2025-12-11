@@ -1,7 +1,18 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // JSON okumak için
-import 'package:ispartaapp/services/colors.dart'; // Renk dosyan
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // EKLENDİ: Favoriler için
+
+// ====================================================================
+// 0. TEMA AYARLARI
+// ====================================================================
+class AppTheme {
+  static const Color primary = Color(0xFF1565C0);
+  static const Color secondary = Color(0xFFFF6F00);
+  static const Color background = Color(0xFFF5F7FA);
+  static const Color textDark = Color(0xFF263238);
+  static const Color textGrey = Color(0xFF78909C);
+}
 
 class BusServices extends StatefulWidget {
   const BusServices({super.key});
@@ -11,22 +22,46 @@ class BusServices extends StatefulWidget {
 }
 
 class _BusServicesState extends State<BusServices> {
-  List<dynamic> _allBusLines = []; // Tüm hatlar
-  List<dynamic> _filteredBusLines = []; // Arama sonucu hatlar
+  List<dynamic> _allBusLines = [];
+  List<dynamic> _displayBusLines = [];
+
+  // 🔥 FAVORİ LİSTESİ
+  List<String> _favoriteLines = [];
+
   TextEditingController _searchController = TextEditingController();
+  bool _showOnlyActive = false;
 
   @override
   void initState() {
     super.initState();
     _loadBusData();
+    _loadFavorites(); // Başlarken favorileri çek
   }
 
-  // JSON Verisini Okuma
+  // --- FAVORİ İŞLEMLERİ ---
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _favoriteLines = prefs.getStringList('favorite_bus_lines') ?? [];
+    });
+  }
+
+  Future<void> _toggleFavorite(String lineName) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      if (_favoriteLines.contains(lineName)) {
+        _favoriteLines.remove(lineName); // Varsa çıkar
+      } else {
+        _favoriteLines.add(lineName); // Yoksa ekle
+      }
+    });
+    // Güncel listeyi kaydet
+    await prefs.setStringList('favorite_bus_lines', _favoriteLines);
+  }
+  // -------------------------
+
   Future<void> _loadBusData() async {
     try {
-      // JSON dosya yolunu buraya tam olarak yazıyoruz
-      // NOT: Dosya yolunun pubspec.yaml ile uyumlu olduğundan emin ol.
-
       final String response = await rootBundle.loadString(
         'jsons/otobus_saatleri.json',
       );
@@ -34,34 +69,34 @@ class _BusServicesState extends State<BusServices> {
 
       setState(() {
         _allBusLines = data;
-        _filteredBusLines = data;
+        _displayBusLines = data;
       });
     } catch (e) {
       print("JSON Okuma Hatası: $e");
     }
   }
 
-  // Arama Fonksiyonu
-  void _runFilter(String enteredKeyword) {
-    List<dynamic> results = [];
-    if (enteredKeyword.isEmpty) {
-      results = _allBusLines;
-    } else {
-      results = _allBusLines
-          .where(
-            (line) => line["hat_adi"].toString().toLowerCase().contains(
-              enteredKeyword.toLowerCase(),
-            ),
-          )
-          .toList();
-    }
+  void _applyFilters() {
+    String keyword = _searchController.text.toLowerCase();
 
     setState(() {
-      _filteredBusLines = results;
+      _displayBusLines = _allBusLines.where((line) {
+        bool matchesName = line["hat_adi"].toString().toLowerCase().contains(
+          keyword,
+        );
+
+        bool matchesActive = true;
+        if (_showOnlyActive) {
+          String status = _getBusStatusText(line['saatler']);
+          matchesActive =
+              status.contains("Sıradaki") || status.contains("Son Sefer");
+        }
+
+        return matchesName && matchesActive;
+      }).toList();
     });
   }
 
-  // Saatleri "Dakika" cinsine çevirir (Karşılaştırma yapmak için)
   int _timeToMinutes(String time) {
     try {
       final parts = time.split(':');
@@ -71,7 +106,6 @@ class _BusServicesState extends State<BusServices> {
     }
   }
 
-  // --- YENİ EKLENEN: Liste Kartı İçin Durum Metni ---
   String _getBusStatusText(List<dynamic> rawTimes) {
     List<String> times = rawTimes.map((e) => e.toString()).toSet().toList();
     times.sort((a, b) => _timeToMinutes(a).compareTo(_timeToMinutes(b)));
@@ -84,42 +118,36 @@ class _BusServicesState extends State<BusServices> {
     final firstBusMinutes = _timeToMinutes(times.first);
     final lastBusMinutes = _timeToMinutes(times.last);
 
-    // Durum 1: Henüz seferler başlamadı (Sabah erken)
     if (currentMinutes < firstBusMinutes) {
-      return "Henüz sefer başlamadı. İlk Sefer: ${times.first}";
-    }
-    // Durum 2: Seferler bitti (Gece geç)
-    else if (currentMinutes > lastBusMinutes) {
-      return "Seferler tamamlandı. Son Sefer: ${times.last}";
-    }
-    // Durum 3: Gün içi (Sıradaki seferi göster)
-    else {
+      return "Henüz başlamadı (İlk: ${times.first})";
+    } else if (currentMinutes > lastBusMinutes) {
+      return "Seferler tamamlandı";
+    } else {
       for (var time in times) {
         if (_timeToMinutes(time) >= currentMinutes) {
-          return "Sıradaki Sefer: $time";
+          if (time == times.last) {
+            return "Son Sefer: $time";
+          }
+          return "Sıradaki: $time";
         }
       }
       return "Seferler tamamlandı";
     }
   }
 
-  // Detay Penceresini Açan Fonksiyon (Saatleri Gösterir)
   void _showBusTimes(
     BuildContext context,
     String title,
     List<dynamic> rawTimes,
   ) {
-    // 1. Saatleri Temizle ve Sırala
     List<String> times = rawTimes.map((e) => e.toString()).toSet().toList();
     times.sort((a, b) => _timeToMinutes(a).compareTo(_timeToMinutes(b)));
 
-    // 2. Şu anki saati al
     final now = DateTime.now();
     final currentMinutes = now.hour * 60 + now.minute;
 
-    // 3. En yakın gelecek saati ve indexini bul
     String? nextBusTime;
-    int targetIndex = 0; // Kaydırma yapılacak hedef index
+    int targetIndex = 0;
 
     for (int i = 0; i < times.length; i++) {
       if (_timeToMinutes(times[i]) >= currentMinutes) {
@@ -129,24 +157,18 @@ class _BusServicesState extends State<BusServices> {
       }
     }
 
-    // Scroll Controller (Otomatik kaydırma için)
     final ScrollController scrollController = ScrollController();
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (context) {
-        // --- YENİ EKLENEN: Otomatik Kaydırma Mantığı ---
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (scrollController.hasClients && nextBusTime != null) {
-            // Grid yapısında satır sayısını hesapla (4 sütunlu olduğu için 4'e bölüyoruz)
-            // Her satırın yaklaşık yüksekliği + boşluk ile çarpıyoruz (Örn: 50px)
             double offset = (targetIndex / 4).floor() * 50.0;
-
-            // Eğer listenin sonlarına doğruysa offset hatası vermemesi için clamp kullanılır
-            // Ama basitçe animateTo çoğu durumda iş görür.
             scrollController.animateTo(
               offset,
               duration: const Duration(milliseconds: 500),
@@ -160,36 +182,43 @@ class _BusServicesState extends State<BusServices> {
           height: 500,
           child: Column(
             children: [
-              Text(
-                "$title Hareket Saatleri",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.secondary,
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 10),
-              const Divider(),
-              const SizedBox(height: 10),
+              Text(
+                "$title Saatleri",
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 15),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _legendItem(Colors.grey, "Geçmiş"),
-                  const SizedBox(width: 10),
-                  _legendItem(Colors.green, "Sıradaki"),
-                  const SizedBox(width: 10),
-                  _legendItem(Colors.black, "Gelecek"),
+                  _legendItem(Colors.grey[300]!, "Geçmiş", Colors.grey[600]!),
+                  const SizedBox(width: 15),
+                  _legendItem(AppTheme.secondary, "Sıradaki", Colors.white),
+                  const SizedBox(width: 15),
+                  _legendItem(Colors.redAccent, "Son Sefer", Colors.white),
                 ],
               ),
               const SizedBox(height: 20),
               Expanded(
                 child: GridView.builder(
-                  controller: scrollController, // Controller'ı buraya bağladık
+                  controller: scrollController,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 4,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 2.0,
+                    childAspectRatio: 2.2,
                   ),
                   itemCount: times.length,
                   itemBuilder: (context, index) {
@@ -198,23 +227,29 @@ class _BusServicesState extends State<BusServices> {
 
                     Color bgColor;
                     Color textColor;
+                    Border? border;
 
                     if (timeStr == nextBusTime) {
-                      bgColor = Colors.green;
+                      if (timeStr == times.last) {
+                        bgColor = Colors.redAccent;
+                      } else {
+                        bgColor = AppTheme.secondary;
+                      }
                       textColor = Colors.white;
                     } else if (timeMinutes < currentMinutes) {
-                      bgColor = Colors.grey.shade300;
-                      textColor = Colors.grey.shade700;
+                      bgColor = Colors.grey[200]!;
+                      textColor = Colors.grey[500]!;
                     } else {
                       bgColor = Colors.white;
-                      textColor = Colors.black;
+                      textColor = AppTheme.textDark;
+                      border = Border.all(color: Colors.grey[300]!);
                     }
 
                     return Container(
                       decoration: BoxDecoration(
                         color: bgColor,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: border,
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -235,127 +270,291 @@ class _BusServicesState extends State<BusServices> {
     );
   }
 
-  Widget _legendItem(Color color, String text) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  Widget _legendItem(
+    Color bg,
+    String text,
+    Color textCol, {
+    bool border = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: border ? Border.all(color: Colors.grey[300]!) : null,
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          color: textCol,
+          fontWeight: FontWeight.bold,
         ),
-        const SizedBox(width: 4),
-        Text(text, style: const TextStyle(fontSize: 12)),
-      ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         scrolledUnderElevation: 0.0,
-        title: const Text("Otobüs Hatları"),
-        backgroundColor: Colors.transparent,
+        title: const Text("Otobüs Saatleri"),
+        centerTitle: true,
+        backgroundColor: AppTheme.background,
         elevation: 0,
-        foregroundColor: AppColors.texts,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppTheme.textDark,
+          ),
+          onPressed: () {
+            // 🔥 Geri dönerken 'true' gönderiyoruz ki MainPage güncellensin
+            Navigator.pop(context, true);
+          },
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _searchController,
-              onChanged: (value) => _runFilter(value),
-              decoration: InputDecoration(
-                labelText: 'Hat Ara (Örn: Hat 32)',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 10.0,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) => _applyFilters(),
+                      decoration: const InputDecoration(
+                        hintText: 'Hat Ara (Örn: 32)',
+                        hintStyle: TextStyle(color: Colors.grey),
+                        prefixIcon: Icon(Icons.search, color: AppTheme.primary),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 15),
+                      ),
+                    ),
+                  ),
                 ),
-                filled: true,
-                fillColor: Colors.white,
+                const SizedBox(width: 10),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _showOnlyActive = !_showOnlyActive;
+                      _applyFilters();
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(15),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: 50,
+                    width: 50,
+                    decoration: BoxDecoration(
+                      color: _showOnlyActive
+                          ? AppTheme.secondary
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: _showOnlyActive
+                          ? null
+                          : Border.all(color: Colors.grey.withOpacity(0.2)),
+                    ),
+                    child: Icon(
+                      Icons.access_time_filled_rounded,
+                      color: _showOnlyActive ? Colors.white : AppTheme.textGrey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (_showOnlyActive)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                "Sadece şu an aktif olan seferler gösteriliyor.",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.secondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: _filteredBusLines.isEmpty
-                  ? const Center(child: Text("Hat bulunamadı"))
-                  : ListView.builder(
-                      itemCount: _filteredBusLines.length,
-                      itemBuilder: (context, index) {
-                        final line = _filteredBusLines[index];
-                        // Her satır için durum metnini hesapla
-                        String statusText = _getBusStatusText(line['saatler']);
 
-                        // Duruma göre renk belirle (Opsiyonel: Görsellik katar)
-                        Color statusColor = Colors.grey;
-                        if (statusText.contains("Sıradaki")) {
-                          statusColor = Colors.green;
-                        } else if (statusText.contains("Henüz")) {
-                          statusColor = Colors.orange;
-                        }
+          Expanded(
+            child: _displayBusLines.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.directions_bus_outlined,
+                          size: 60,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "Hat bulunamadı.",
+                          style: TextStyle(color: AppTheme.textGrey),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    itemCount: _displayBusLines.length,
+                    itemBuilder: (context, index) {
+                      final line = _displayBusLines[index];
+                      String lineName = line['hat_adi'];
+                      String statusText = _getBusStatusText(line['saatler']);
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 10,
+                      bool isLastBus = statusText.contains("Son Sefer");
+                      bool isActive = statusText.contains("Sıradaki");
+
+                      // 🔥 FAVORİ KONTROLÜ
+                      bool isFavorite = _favoriteLines.contains(lineName);
+
+                      Color statusColor;
+                      Color stripColor;
+                      IconData statusIcon;
+
+                      if (isLastBus) {
+                        statusColor = Colors.redAccent;
+                        stripColor = Colors.redAccent;
+                        statusIcon = Icons.warning_amber_rounded;
+                      } else if (isActive) {
+                        statusColor = Colors.green[700]!;
+                        stripColor = Colors.green;
+                        statusIcon = Icons.timelapse;
+                      } else {
+                        statusColor = AppTheme.textGrey;
+                        stripColor = Colors.grey[300]!;
+                        statusIcon = Icons.info_outline;
+                      }
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
                             ),
-                            leading: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.directions_bus,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            title: Text(
-                              line['hat_adi'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border(
+                                left: BorderSide(color: stripColor, width: 5),
                               ),
                             ),
-                            // --- YENİ EKLENEN: Alt Başlık (Durum Bilgisi) ---
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 4.0),
-                              child: Text(
-                                statusText,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: statusColor,
-                                  fontWeight: FontWeight.w500,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              title: Text(
+                                lineName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: AppTheme.textDark,
                                 ),
                               ),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 6.0),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      statusIcon,
+                                      size: 16,
+                                      color: statusColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      statusText,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: statusColor,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // 🔥 SAĞ TARAF: FAVORİ BUTONU VE OK
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Favori Butonu
+                                  IconButton(
+                                    icon: Icon(
+                                      isFavorite
+                                          ? Icons.favorite_rounded
+                                          : Icons.favorite_border_rounded,
+                                      color: isFavorite
+                                          ? Colors.redAccent
+                                          : Colors.grey[400],
+                                    ),
+                                    onPressed: () => _toggleFavorite(lineName),
+                                  ),
+                                  // Ok Butonu
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.background,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 14,
+                                      color: AppTheme.textGrey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              onTap: () {
+                                _showBusTimes(
+                                  context,
+                                  lineName,
+                                  line['saatler'],
+                                );
+                              },
                             ),
-                            trailing: const Icon(
-                              Icons.arrow_forward_ios,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            onTap: () {
-                              _showBusTimes(
-                                context,
-                                line['hat_adi'],
-                                line['saatler'],
-                              );
-                            },
                           ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

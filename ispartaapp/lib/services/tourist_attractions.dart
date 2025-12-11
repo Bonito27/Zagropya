@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; // Harita için
-import 'package:ispartaapp/services/colors.dart'; // Renk dosyan
+import 'package:url_launcher/url_launcher.dart';
+
+// ====================================================================
+// 0. TEMA AYARLARI
+// ====================================================================
+class AppTheme {
+  static const Color primary = Color(0xFF1565C0);
+  static const Color secondary = Color(0xFFFF6F00);
+  static const Color background = Color(0xFFF5F7FA);
+  static const Color textDark = Color(0xFF263238);
+  static const Color textGrey = Color(0xFF78909C);
+}
 
 class TouristAttractions extends StatefulWidget {
   const TouristAttractions({super.key});
@@ -11,7 +21,6 @@ class TouristAttractions extends StatefulWidget {
 
 class _TouristAttractionsState extends State<TouristAttractions> {
   // --- GEZİLECEK YERLER VERİTABANI ---
-  // DİKKAT: Buradaki 'color', 'icon' ve 'needs' alanları yeni tasarım için şarttır.
   final List<Map<String, dynamic>> _places = [
     {
       "name": "Davraz Kayak Merkezi",
@@ -19,7 +28,7 @@ class _TouristAttractionsState extends State<TouristAttractions> {
           "Akdeniz'in incisi. Kış sporları ve eşsiz Eğirdir Gölü manzarası eşliğinde kayak keyfi.",
       "location": "Davraz Kayak Merkezi Isparta",
       "icon": Icons.downhill_skiing,
-      "color": Colors.cyan, // Kar/Buz rengi
+      "color": Colors.cyan,
       "needs": ["Kalın Mont", "Güneş Gözlüğü", "Kayak Eldiveni", "Yedek Çorap"],
     },
     {
@@ -27,8 +36,8 @@ class _TouristAttractionsState extends State<TouristAttractions> {
       "desc":
           "Türkiye'nin lavanta cenneti. Temmuz ayında mor tarlalarda harika fotoğraflar çekin.",
       "location": "Kuyucak Köyü Keçiborlu Isparta",
-      "icon": Icons.camera_alt,
-      "color": Colors.purple, // Lavanta rengi
+      "icon": Icons.camera_alt_rounded,
+      "color": Colors.purple,
       "needs": ["Şapka", "Güneş Kremi", "Açık Renk Kıyafet", "Powerbank"],
     },
     {
@@ -36,8 +45,8 @@ class _TouristAttractionsState extends State<TouristAttractions> {
       "desc":
           "Yedi renkli göl. Altınkum plajında yüzebilir, Yeşilada'da balık yiyebilirsiniz.",
       "location": "Eğirdir Gölü Isparta",
-      "icon": Icons.water,
-      "color": Colors.blue, // Göl rengi
+      "icon": Icons.water_rounded,
+      "color": Colors.blue,
       "needs": ["Mayo & Havlu", "Güneş Kremi", "Kamp Sandalyesi", "Terlik"],
     },
     {
@@ -45,8 +54,8 @@ class _TouristAttractionsState extends State<TouristAttractions> {
       "desc":
           "Tarih ve doğanın buluştuğu yer. Turkuaz sularda serinleyin ve Kral Yolu'nda yürüyün.",
       "location": "Yazılı Kanyon Tabiat Parkı Isparta",
-      "icon": Icons.landscape,
-      "color": Colors.teal, // Doğa/Orman rengi
+      "icon": Icons.landscape_rounded,
+      "color": Colors.teal,
       "needs": ["Yürüyüş Ayakkabısı", "Sırt Çantası", "Su Matarası", "Mayo"],
     },
     {
@@ -54,8 +63,8 @@ class _TouristAttractionsState extends State<TouristAttractions> {
       "desc":
           "Şehir merkezine yakın, volkanik bir krater gölü. Sakin bir piknik ve yürüyüş için ideal.",
       "location": "Gölcük Tabiat Parkı Isparta",
-      "icon": Icons.park,
-      "color": Colors.green, // Orman rengi
+      "icon": Icons.park_rounded,
+      "color": Colors.green,
       "needs": ["Piknik Örtüsü", "Atıştırmalıklar", "Termos", "Rahat Ayakkabı"],
     },
     {
@@ -63,45 +72,39 @@ class _TouristAttractionsState extends State<TouristAttractions> {
       "desc":
           "765 metre uzunluğunda, içinden dere akan, Roma döneminden kalma köprüsüyle ünlü mağara.",
       "location": "Zindan Mağarası Aksu Isparta",
-      "icon": Icons.flashlight_on,
-      "color": Colors.brown, // Mağara/Toprak rengi
-      "needs": [
-        "El Feneri",
-        "Kaymaz Ayakkabı",
-        "İnce Hırka (Serin Olur)",
-        "Su",
-      ],
+      "icon": Icons.flashlight_on_rounded,
+      "color": Colors.brown,
+      "needs": ["El Feneri", "Kaymaz Ayakkabı", "İnce Hırka", "Su"],
     },
     {
       "name": "Isparta Müzesi",
       "desc":
           "Bölgenin zengin arkeolojik ve etnografik geçmişine ışık tutan kapsamlı bir müze.",
       "location": "Isparta Müzesi",
-      "icon": Icons.museum,
-      "color": Colors.orange, // Tarih rengi
-      "needs": ["Müze Kart", "Not Defteri", "Kulaklık (Sesli Rehber İçin)"],
+      "icon": Icons.museum_rounded,
+      "color": Colors.orange,
+      "needs": ["Müze Kart", "Not Defteri", "Kulaklık"],
     },
   ];
 
-  // --- HARİTA AÇMA FONKSİYONU ---
+  // --- HARİTA AÇMA ---
   Future<void> _openMap(String locationName) async {
     final String query = Uri.encodeComponent(locationName);
     Uri googleMapsUrl = Uri.parse("google.navigation:q=$query");
 
-    // Android/iOS uyumluluğu için kontrol
     if (!await canLaunchUrl(googleMapsUrl)) {
       googleMapsUrl = Uri.parse(
-        "https://www.google.com/maps/dir/?api=1&destination=$query",
+        "http://googleusercontent.com/maps.google.com/maps?q=$query",
       );
     }
 
     try {
       await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
     } catch (e) {
-      print("Harita hatası: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Harita uygulaması açılamadı.")),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Harita açılamadı.")));
     }
   }
 
@@ -110,55 +113,48 @@ class _TouristAttractionsState extends State<TouristAttractions> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent, // Köşelerin oval durması için
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-          ),
+        return Padding(
           padding: const EdgeInsets.all(25),
-          height: 550,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Wrap(
+            // İçerik kadar yükseklik
             children: [
-              // 1. Kapatma Çizgisi (Görsel detay)
+              // Kapatma Çizgisi
               Center(
                 child: Container(
-                  width: 50,
-                  height: 5,
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
 
-              // 2. Başlık ve İkon
+              // Başlık ve İkon
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      // HATA ÇÖZÜMÜ: Eğer renk null gelirse varsayılan gri yap
-                      color: (place['color'] ?? Colors.grey).withOpacity(0.2),
+                      color: (place['color'] as Color).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: Icon(
-                      place['icon'],
-                      color: place['color'] ?? Colors.grey,
-                      size: 32,
-                    ),
+                    child: Icon(place['icon'], color: place['color'], size: 32),
                   ),
                   const SizedBox(width: 15),
                   Expanded(
                     child: Text(
                       place['name'],
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.texts,
+                        color: AppTheme.textDark,
                       ),
                     ),
                   ),
@@ -166,12 +162,7 @@ class _TouristAttractionsState extends State<TouristAttractions> {
               ),
               const SizedBox(height: 20),
 
-              // 3. Açıklama
-              const Text(
-                "Hakkında",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
+              // Açıklama
               Text(
                 place['desc'],
                 style: TextStyle(
@@ -180,53 +171,70 @@ class _TouristAttractionsState extends State<TouristAttractions> {
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
 
-              // 4. Yanınızda Bulunsun Kısmı
-              Row(
-                children: [
-                  Icon(
-                    Icons.backpack_outlined,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    "Yanınızda Bulunsun",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: (place['needs'] as List<String>).map((item) {
-                  return Chip(
-                    label: Text(item),
-                    backgroundColor: Colors.grey[100],
-                    avatar: const Icon(
-                      Icons.check,
-                      size: 16,
-                      color: Colors.green,
+              // Yanınızda Bulunsun
+              if (place['needs'] != null) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.backpack_outlined,
+                      size: 20,
+                      color: AppTheme.primary,
                     ),
-                    side: BorderSide.none,
-                  );
-                }).toList(),
-              ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "Yanınızda Bulunsun",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: (place['needs'] as List<String>).map((item) {
+                    return Chip(
+                      label: Text(
+                        item,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      backgroundColor: AppTheme.background,
+                      avatar: const Icon(
+                        Icons.check_circle_rounded,
+                        size: 16,
+                        color: Colors.green,
+                      ),
+                      side: BorderSide.none,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 30),
+              ],
 
-              const Spacer(),
-
-              // 5. Rota Butonu
+              // Rota Butonu
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.pop(context); // Pencereyi kapat
-                    _openMap(place['location']); // Haritayı aç
+                    Navigator.pop(context);
+                    _openMap(place['location']);
                   },
-                  icon: const Icon(Icons.directions, color: Colors.white),
+                  icon: const Icon(
+                    Icons.directions_rounded,
+                    color: Colors.white,
+                  ),
                   label: const Text(
                     "Rotayı Başlat",
                     style: TextStyle(
@@ -236,13 +244,16 @@ class _TouristAttractionsState extends State<TouristAttractions> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: AppTheme.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
+                    elevation: 5,
+                    shadowColor: AppTheme.primary.withOpacity(0.3),
                   ),
                 ),
               ),
+              const SizedBox(height: 20), // Alt boşluk
             ],
           ),
         );
@@ -253,82 +264,108 @@ class _TouristAttractionsState extends State<TouristAttractions> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         scrolledUnderElevation: 0.0,
-
         title: const Text("Gezilecek Yerler"),
-        backgroundColor: Colors.transparent,
+        centerTitle: true,
+        backgroundColor: AppTheme.background,
         elevation: 0,
-        foregroundColor: AppColors.texts,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppTheme.textDark,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(15),
         itemCount: _places.length,
         itemBuilder: (context, index) {
-          final place = _places[index];
-          return _buildPlaceCard(place);
+          return _buildPlaceCard(_places[index]);
         },
       ),
     );
   }
 
-  // --- LİSTE KARTI TASARIMI ---
+  // --- MODERN KART TASARIMI ---
   Widget _buildPlaceCard(Map<String, dynamic> place) {
-    // Hata önlemek için renk kontrolü
     Color itemColor = place['color'] ?? Colors.grey;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 15),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: () => _showPlaceDetails(context, place), // Detayları aç
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Row(
-            children: [
-              // Sol Taraftaki Renkli İkon Kutusu
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: itemColor.withOpacity(
-                    0.15,
-                  ), // Burada hata veriyordu, düzelttik
-                  borderRadius: BorderRadius.circular(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showPlaceDetails(context, place),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                // İkon Kutusu
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: itemColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(place['icon'], color: itemColor, size: 30),
                 ),
-                child: Icon(place['icon'], color: itemColor, size: 30),
-              ),
-              const SizedBox(width: 15),
+                const SizedBox(width: 16),
 
-              // Yazılar
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      place['name'],
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                // Metinler
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        place['name'],
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textDark,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      place['desc'],
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        place['desc'],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textGrey,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              // Sağ Ok
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[300]),
-            ],
+                // Ok İkonu
+                const Padding(
+                  padding: EdgeInsets.only(left: 8.0),
+                  child: Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: Color(0xFFCFD8DC),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

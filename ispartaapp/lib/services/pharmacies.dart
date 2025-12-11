@@ -1,8 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // JSON okumak için
-import 'package:url_launcher/url_launcher.dart'; // Harita ve Telefon için
-import 'package:ispartaapp/services/colors.dart'; // Renk dosyan
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+// ====================================================================
+// 0. TEMA AYARLARI
+// ====================================================================
+class AppTheme {
+  static const Color primary = Color(0xFF1565C0);
+  static const Color background = Color(0xFFF5F7FA);
+  static const Color textDark = Color(0xFF263238);
+  static const Color textGrey = Color(0xFF78909C);
+  static const Color pharmacyRed = Color(0xFFE53935); // Eczane kırmızısı
+}
 
 class Pharmacies extends StatefulWidget {
   const Pharmacies({super.key});
@@ -12,11 +22,10 @@ class Pharmacies extends StatefulWidget {
 }
 
 class _PharmaciesState extends State<Pharmacies> {
-  List<dynamic> _allPharmacies = []; // Tüm liste
-  List<dynamic> _filteredPharmacies =
-      []; // Ekranda gösterilen (filtrelenmiş) liste
-  List<String> _districts = ["Tümü"]; // İlçe listesi
-  String _selectedDistrict = "Tümü"; // Seçili filtre
+  List<dynamic> _allPharmacies = [];
+  List<dynamic> _filteredPharmacies = [];
+  List<String> _districts = ["Tümü"];
+  String _selectedDistrict = "Tümü";
   bool _isLoading = true;
 
   @override
@@ -25,53 +34,41 @@ class _PharmaciesState extends State<Pharmacies> {
     _loadPharmacyData();
   }
 
-  // --- 1. FIRESTORE'DAN VERİ ÇEKME VE ANALİZ ---
+  // --- 1. FIRESTORE'DAN VERİ ÇEKME ---
   Future<void> _loadPharmacyData() async {
     try {
-      // 1. Firestore'dan Veri Çek
-      // Botumuz veriyi 'eczaneler' koleksiyonuna yazıyordu.
       final snapshot = await FirebaseFirestore.instance
           .collection('eczaneler')
-          .get(); // Tüm dökümanları çek
-
-      // Dökümanları List<Map> formatına çevir
+          .get();
       final List<dynamic> data = snapshot.docs
           .map((doc) => doc.data())
           .toList();
 
-      // İlçeleri analiz et (Tekrarları önlemek için Set kullanıyoruz)
       Set<String> districtSet = {};
       for (var item in data) {
-        // Data içindeki 'ilce' alanının varlığını ve null olmadığını kontrol et
         if (item.containsKey('ilce') && item['ilce'] != null) {
           districtSet.add(item['ilce']);
         }
       }
 
-      // Listeyi oluştur: Önce "Tümü", sonra alfabetik ilçeler
       List<String> districtList = ["Tümü"];
       districtList.addAll(districtSet.toList()..sort());
 
-      print("✅ Firestore Eczane Bağlantısı Başarılı!");
-      print("Toplam Eczane: ${data.length}");
-
-      setState(() {
-        _allPharmacies = data;
-        _filteredPharmacies = data; // Başlangıçta hepsi görünsün
-        _districts = districtList;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _allPharmacies = data;
+          _filteredPharmacies = data;
+          _districts = districtList;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      print("🚨 HATA: Firestore Eczane Verisi okunamadı! -> $e");
-      // Hata durumunda yüklemeyi durdur ve kullanıcıyı bilgilendir
-      setState(() {
-        _isLoading = false;
-        // İsteğe bağlı olarak bir uyarı mesajı (Snackbar) gösterilebilir.
-      });
+      print("Hata: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- 2. FİLTRELEME FONKSİYONU ---
+  // --- 2. FİLTRELEME ---
   void _filterPharmacies(String district) {
     setState(() {
       _selectedDistrict = district;
@@ -79,70 +76,129 @@ class _PharmaciesState extends State<Pharmacies> {
         _filteredPharmacies = _allPharmacies;
       } else {
         _filteredPharmacies = _allPharmacies
-            .where((pharmacy) => pharmacy['ilce'] == district)
+            .where((p) => p['ilce'] == district)
             .toList();
       }
     });
   }
 
-  // --- 3. DİREKT ROTA OLUŞTURMA ---
+  // --- 3. HARİTA VE ARAMA İŞLEMLERİ ---
   Future<void> _openMapRoute(String name, String district) async {
-    // Sadece adres yerine "Eczane Adı + İlçe + Isparta" şeklinde aratmak
-    // Google Maps'in nokta atışı yapmasını ve direkt işletmeyi bulmasını sağlar.
     final String query = Uri.encodeComponent(
       "$name Eczanesi $district Isparta",
     );
-
-    // 'google.navigation:q=' kodu direkt Navigasyon modunu başlatır.
     Uri googleMapsUrl = Uri.parse("google.navigation:q=$query");
 
-    // Eğer Android değilse veya bu şema çalışmazsa web linkine düş
     if (!await canLaunchUrl(googleMapsUrl)) {
       googleMapsUrl = Uri.parse(
-        "https://www.google.com/maps/dir/?api=1&destination=$query",
+        "http://googleusercontent.com/maps.google.com/maps?q=$query",
       );
     }
 
     try {
       await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
     } catch (e) {
-      print("Harita açılamadı: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Harita uygulaması başlatılamadı.")),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Harita açılamadı.")));
     }
   }
 
-  // --- 4. TELEFON ARAMA ---
   Future<void> _callPharmacy(String phone) async {
     final String cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
     final Uri telUrl = Uri.parse("tel:$cleanPhone");
     try {
       await launchUrl(telUrl);
     } catch (e) {
-      print("Arama yapılamadı: $e");
+      print("Arama hatası: $e");
     }
+  }
+
+  // Tarih Formatlayıcı
+  String _getTodaysDate() {
+    DateTime now = DateTime.now();
+    List<String> months = [
+      "Ocak",
+      "Şubat",
+      "Mart",
+      "Nisan",
+      "Mayıs",
+      "Haziran",
+      "Temmuz",
+      "Ağustos",
+      "Eylül",
+      "Ekim",
+      "Kasım",
+      "Aralık",
+    ];
+    return "${now.day} ${months[now.month - 1]} ${now.year}";
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         scrolledUnderElevation: 0.0,
-
         title: const Text("Nöbetçi Eczaneler"),
-        backgroundColor: Colors.transparent,
+        centerTitle: true,
+        backgroundColor: AppTheme.background,
         elevation: 0,
-        foregroundColor: AppColors.texts,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppTheme.textDark,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Column(
         children: [
-          // --- YATAY İLÇE FİLTRESİ ---
+          // --- TARİH BAŞLIĞI ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.pharmacyRed.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_today_rounded,
+                    color: AppTheme.pharmacyRed,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _getTodaysDate(),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    const Text(
+                      "Bugün nöbetçi olan eczaneler",
+                      style: TextStyle(fontSize: 12, color: AppTheme.textGrey),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // --- İLÇE FİLTRESİ ---
           if (!_isLoading)
             Container(
-              height: 60,
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              height: 50,
+              margin: const EdgeInsets.only(bottom: 10),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 15),
@@ -152,36 +208,38 @@ class _PharmaciesState extends State<Pharmacies> {
                   final isSelected = district == _selectedDistrict;
                   return GestureDetector(
                     onTap: () => _filterPharmacies(district),
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
                       margin: const EdgeInsets.only(right: 10),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
+                        color: isSelected ? AppTheme.pharmacyRed : Colors.white,
+                        borderRadius: BorderRadius.circular(25),
                         border: Border.all(
                           color: isSelected
-                              ? AppColors.primary
+                              ? AppTheme.pharmacyRed
                               : Colors.grey.shade300,
                         ),
-                        boxShadow: [
-                          if (isSelected)
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.3),
-                              blurRadius: 5,
-                              offset: const Offset(0, 3),
-                            ),
-                        ],
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: AppTheme.pharmacyRed.withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : [],
                       ),
-                      child: Center(
-                        child: Text(
-                          district,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.grey[700],
-                            fontWeight: FontWeight.bold,
-                          ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        district,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : AppTheme.textGrey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -190,34 +248,37 @@ class _PharmaciesState extends State<Pharmacies> {
               ),
             ),
 
-          // --- ECZANE LİSTESİ ---
+          // --- LİSTE ---
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.pharmacyRed,
+                    ),
+                  )
                 : _filteredPharmacies.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.location_off,
+                          Icons.location_off_rounded,
                           size: 60,
-                          color: Colors.grey[400],
+                          color: Colors.grey[300],
                         ),
                         const SizedBox(height: 10),
-                        Text(
-                          "Bu ilçede nöbetçi eczane bulunamadı.",
-                          style: TextStyle(color: Colors.grey[600]),
+                        const Text(
+                          "Bu bölgede nöbetçi eczane bulunamadı.",
+                          style: TextStyle(color: AppTheme.textGrey),
                         ),
                       ],
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(15),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     itemCount: _filteredPharmacies.length,
                     itemBuilder: (context, index) {
-                      final pharmacy = _filteredPharmacies[index];
-                      return _buildPharmacyCard(pharmacy);
+                      return _buildPharmacyCard(_filteredPharmacies[index]);
                     },
                   ),
           ),
@@ -226,130 +287,184 @@ class _PharmaciesState extends State<Pharmacies> {
     );
   }
 
-  // --- KART TASARIMI ---
+  // --- MODERN KART TASARIMI ---
   Widget _buildPharmacyCard(dynamic pharmacy) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 15),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: () {
-          // Karta basınca direkt rota oluştur
-          _openMapRoute(pharmacy['eczane_adi'], pharmacy['ilce']);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Üst Kısım: İkon + İsim + İlçe
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.local_pharmacy,
-                      color: Colors.red,
-                      size: 28,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Üst Kısım: Bilgiler
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Eczane Logosu (E Harfi)
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppTheme.pharmacyRed.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "E",
+                      style: TextStyle(
+                        color: AppTheme.pharmacyRed,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          pharmacy['eczane_adi'],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            pharmacy['ilce'], // Burada ilçe yazıyor
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[800],
-                              fontWeight: FontWeight.w600,
+                ),
+                const SizedBox(width: 15),
+                // İsim ve Adres
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              pharmacy['eczane_adi'] ?? "Eczane",
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textDark,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ),
+                          // İlçe Rozeti
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: Text(
+                              pharmacy['ilce'] ?? "",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        pharmacy['adres'] ?? "Adres bilgisi yok",
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textGrey,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Alt Kısım: Aksiyon Butonları (Gri Arka Planlı)
+          Container(
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(16),
+              ),
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Row(
+              children: [
+                // Arama Butonu
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _callPharmacy(pharmacy['telefon'] ?? ""),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(
+                          Icons.phone_in_talk_rounded,
+                          size: 18,
+                          color: Colors.green,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          "Hemen Ara",
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  // Arama Butonu
-                  IconButton(
-                    icon: const Icon(Icons.call, color: Colors.green),
-                    onPressed: () {
-                      _callPharmacy(pharmacy['telefon']);
-                    },
-                  ),
-                ],
-              ),
-              const Divider(height: 20),
-
-              // Alt Kısım: Adres
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.location_on_outlined,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      pharmacy['adres'],
-                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
+                // Dikey Çizgi
+                Container(width: 1, height: 25, color: Colors.grey.shade300),
+                // Yol Tarifi Butonu
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _openMapRoute(
+                      pharmacy['eczane_adi'] ?? "",
+                      pharmacy['ilce'] ?? "",
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      bottomRight: Radius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(
+                          Icons.directions_rounded,
+                          size: 20,
+                          color: AppTheme.pharmacyRed,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          "Yol Tarifi",
+                          style: TextStyle(
+                            color: AppTheme.pharmacyRed,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // Rota Butonu
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.directions, size: 20, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Yol Tarifi Başlat",
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

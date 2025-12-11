@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:ispartaapp/services/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+// ====================================================================
+// 0. TEMA AYARLARI
+// ====================================================================
+class AppTheme {
+  static const Color primary = Color(0xFF1565C0); // Şehir Mavisi
+  static const Color secondary = Color(0xFFFF6F00); // Enerjik Turuncu
+  static const Color background = Color(0xFFF5F7FA); // Modern Gri Zemin
+  static const Color textDark = Color(0xFF263238);
+  static const Color textGrey = Color(0xFF78909C);
+  static const Color surface = Colors.white;
+}
 
 class Events extends StatefulWidget {
   const Events({super.key});
@@ -12,23 +23,22 @@ class Events extends StatefulWidget {
 }
 
 class _EventsState extends State<Events> {
-  // Veri tipleri artık Map<String, dynamic> olarak daha spesifik tanımlandı.
+  // Veri Değişkenleri
   List<Map<String, dynamic>> _allEvents = [];
   List<Map<String, dynamic>> _filteredEvents = [];
-
   List<String> _uniqueArtists = [];
-  String? _selectedArtistFilter;
 
+  // Filtre Değişkenleri
+  String? _selectedArtistFilter;
   final TextEditingController _searchController = TextEditingController();
-  // RangeValues başlangıçta 0'dan başlar.
   RangeValues _currentPriceRange = const RangeValues(0, 2000);
   DateTime? _selectedDate;
+  bool _isLoading = true; // Yükleniyor durumu eklendi
 
   @override
   void initState() {
     super.initState();
     _loadEventData();
-    // Arama kutusunun değeri değiştikçe filtrelemeyi tetikle
     _searchController.addListener(_runFilter);
   }
 
@@ -39,54 +49,47 @@ class _EventsState extends State<Events> {
     super.dispose();
   }
 
-  // --- 1. FIRESTORE'DAN VERİ ÇEKME VE ANALİZ (GÜVENLİ ERİŞİM EKLENDİ) ---
+  // --- 1. VERİ ÇEKME ---
   Future<void> _loadEventData() async {
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('etkinlikler')
           .get();
-
       final List<Map<String, dynamic>> data = snapshot.docs
           .map((doc) => doc.data())
           .toList();
 
-      // 🔥 Hata ayıklama için ilk veriyi konsola yazdırın
-      if (data.isNotEmpty) {
-        print("✅ İlk Etkinlik Verisi: ${data[0]}");
-      }
-
       final Set<String> artistsSet = {};
-
       for (var event in data) {
-        // Güvenli erişim: Alan var mı ve null değil mi?
         if (event.containsKey('sanatci') && event['sanatci'] is String) {
           String artistName = event['sanatci'].toString().trim();
-          if (artistName.isNotEmpty) {
-            artistsSet.add(artistName);
-          }
+          if (artistName.isNotEmpty) artistsSet.add(artistName);
         }
       }
 
       List<String> sortedArtists = artistsSet.toList()..sort();
 
-      print("✅ Firestore Bağlantısı Başarılı! Toplam Etkinlik: ${data.length}");
-
-      setState(() {
-        _allEvents = data;
-        _filteredEvents = data; // Başlangıçta tüm veriyi göster
-        _uniqueArtists = sortedArtists;
-      });
+      if (mounted) {
+        setState(() {
+          _allEvents = data;
+          _filteredEvents = data;
+          _uniqueArtists = sortedArtists;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      print("🚨 KRİTİK HATA: Firestore verisi okunamadı! -> $e");
-      // Hata durumunda boş liste gösterilir
-      setState(() {
-        _allEvents = [];
-        _filteredEvents = [];
-      });
+      print("Hata: $e");
+      if (mounted) {
+        setState(() {
+          _allEvents = [];
+          _filteredEvents = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  // --- 2. FİLTRELEME MANTIĞI (GÜVENLİ ERİŞİM VE FİLTRE GÜNCELLEMESİ) ---
+  // --- 2. FİLTRELEME MANTIĞI ---
   void _runFilter() {
     List<Map<String, dynamic>> results = _allEvents;
 
@@ -94,7 +97,6 @@ class _EventsState extends State<Events> {
     if (_searchController.text.isNotEmpty) {
       final lowerSearch = _searchController.text.toLowerCase();
       results = results.where((event) {
-        // Güvenli erişim ile sanatçı veya mekan metinlerini ara
         final artist = (event["sanatci"]?.toString() ?? '').toLowerCase();
         final venue = (event["mekan"]?.toString() ?? '').toLowerCase();
         return artist.contains(lowerSearch) || venue.contains(lowerSearch);
@@ -108,19 +110,16 @@ class _EventsState extends State<Events> {
           .toList();
     }
 
-    // C. Fiyat Filtresi (Fiyat alanı eksikse/null ise 0 olarak kabul edilir)
+    // C. Fiyat Filtresi
     results = results.where((event) {
       final priceValue = event["fiyat"]?.toString() ?? '0';
-      // Sadece rakamları ayıkla
       String priceStr = priceValue.replaceAll(RegExp(r'[^0-9]'), '');
-      // Sayıya çevir, çevrilemezse 0 kabul et
       int price = int.tryParse(priceStr) ?? 0;
-
       return price >= _currentPriceRange.start &&
           price <= _currentPriceRange.end;
     }).toList();
 
-    // D. Tarih Filtresi (Sadece gün numarasını aratma mantığı korunmuştur)
+    // D. Tarih Filtresi
     if (_selectedDate != null) {
       String day = _selectedDate!.day.toString();
       results = results
@@ -133,7 +132,7 @@ class _EventsState extends State<Events> {
     });
   }
 
-  // --- 3. İNTERNET ARAMASI ---
+  // --- 3. GOOGLE ARAMA ---
   Future<void> _searchOnGoogle(String artist, String venue) async {
     final String query = "$artist $venue bilet";
     final Uri url = Uri.parse(
@@ -143,20 +142,21 @@ class _EventsState extends State<Events> {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Arama bağlantısı açılamadı.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Bağlantı açılamadı.')));
       }
     }
   }
 
-  // --- 4. GELİŞMİŞ FİLTRE MODALI (Aynı kaldı) ---
+  // --- 4. FİLTRE MODALI ---
   void _showFilterModal() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (context) {
         return StatefulBuilder(
@@ -166,24 +166,25 @@ class _EventsState extends State<Events> {
                 bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
               child: Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(25),
                 height: 550,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Başlık ve Temizle
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          "Filtreleme Seçenekleri",
+                          "Filtrele",
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark,
                           ),
                         ),
                         TextButton(
                           onPressed: () {
-                            // Filtreleri Sıfırla
                             setState(() {
                               _currentPriceRange = const RangeValues(0, 2000);
                               _selectedArtistFilter = null;
@@ -195,25 +196,28 @@ class _EventsState extends State<Events> {
                           },
                           child: const Text(
                             "Temizle",
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(color: Colors.redAccent),
                           ),
                         ),
                       ],
                     ),
                     const Divider(),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 15),
 
-                    // 1. Sanatçı Seçimi (Dropdown)
+                    // Sanatçı Seçimi
                     const Text(
-                      "Sanatçı Seç",
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      "Sanatçı",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 15),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(10),
+                        color: AppTheme.background,
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: DropdownButtonHideUnderline(
@@ -221,42 +225,42 @@ class _EventsState extends State<Events> {
                           value: _selectedArtistFilter,
                           hint: const Text("Tüm Sanatçılar"),
                           isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
                           items: [
                             const DropdownMenuItem(
                               value: null,
                               child: Text("Tüm Sanatçılar"),
                             ),
-                            // Sanatçı listesi boşsa hata vermez
-                            ..._uniqueArtists.map((artist) {
-                              return DropdownMenuItem(
+                            ..._uniqueArtists.map(
+                              (artist) => DropdownMenuItem(
                                 value: artist,
                                 child: Text(artist),
-                              );
-                            }).toList(),
+                              ),
+                            ),
                           ],
-                          onChanged: (value) {
-                            setModalState(() {
-                              _selectedArtistFilter = value;
-                            });
-                          },
+                          onChanged: (value) => setModalState(
+                            () => _selectedArtistFilter = value,
+                          ),
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 20),
 
-                    // 2. Fiyat Aralığı
+                    // Fiyat Aralığı
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           "Fiyat Aralığı",
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
                         ),
                         Text(
                           "${_currentPriceRange.start.round()} - ${_currentPriceRange.end.round()} TL",
-                          style: TextStyle(
-                            color: AppColors.primary,
+                          style: const TextStyle(
+                            color: AppTheme.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -267,35 +271,39 @@ class _EventsState extends State<Events> {
                       min: 0,
                       max: 2000,
                       divisions: 40,
-                      activeColor: AppColors.primary,
-                      onChanged: (RangeValues values) {
-                        setModalState(() {
-                          _currentPriceRange = values;
-                        });
-                      },
+                      activeColor: AppTheme.primary,
+                      onChanged: (values) =>
+                          setModalState(() => _currentPriceRange = values),
                     ),
+                    const SizedBox(height: 10),
 
-                    const SizedBox(height: 20),
-
-                    // 3. Tarih Seçimi
+                    // Tarih Seçimi
                     const Text(
-                      "Tarih (Opsiyonel)",
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      "Tarih",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.calendar_today),
+                        icon: const Icon(
+                          Icons.calendar_today_rounded,
+                          size: 18,
+                        ),
                         label: Text(
                           _selectedDate == null
                               ? "Tarih Seçiniz"
-                              : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}",
+                              : "${_selectedDate!.day}.${_selectedDate!.month}.${_selectedDate!.year}",
                         ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 15),
+                          foregroundColor: AppTheme.textDark,
+                          side: BorderSide(color: Colors.grey.shade300),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         onPressed: () async {
@@ -304,28 +312,36 @@ class _EventsState extends State<Events> {
                             initialDate: DateTime.now(),
                             firstDate: DateTime.now(),
                             lastDate: DateTime(2026),
+                            builder: (context, child) {
+                              return Theme(
+                                data: ThemeData.light().copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                    primary: AppTheme.primary,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
                           );
-                          if (picked != null) {
-                            setModalState(() {
-                              _selectedDate = picked;
-                            });
-                          }
+                          if (picked != null)
+                            setModalState(() => _selectedDate = picked);
                         },
                       ),
                     ),
-
                     const Spacer(),
 
                     // Uygula Butonu
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 55,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: AppTheme.primary,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(15),
                           ),
+                          elevation: 5,
+                          shadowColor: AppTheme.primary.withOpacity(0.3),
                         ),
                         onPressed: () {
                           _runFilter();
@@ -354,104 +370,124 @@ class _EventsState extends State<Events> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         scrolledUnderElevation: 0.0,
-        title: const Text("Isparta Etkinlikleri"),
-        backgroundColor: Colors.transparent,
+        title: const Text("Etkinlikler"),
+        centerTitle: true,
+        backgroundColor: AppTheme.background,
         elevation: 0,
-        foregroundColor: AppColors.texts,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppTheme.textDark,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.symmetric(horizontal: 15.0),
         child: Column(
           children: [
-            // GELİŞMİŞ ARAMA ÇUBUĞU
-            TextField(
-              controller: _searchController,
-              // onChanged: (value) => _runFilter(), // Listener eklediğimiz için bu satırı kaldırdık
-              decoration: InputDecoration(
-                hintText: 'Etkinlik ara...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color:
-                          (_selectedArtistFilter != null ||
-                              _selectedDate != null)
-                          ? AppColors.primary.withOpacity(0.2)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.tune, color: AppColors.primary),
+            // --- ARAMA ÇUBUĞU ---
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                  onPressed: _showFilterModal,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Etkinlik, sanatçı veya mekan ara...',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  prefixIcon: const Icon(Icons.search, color: AppTheme.primary),
+                  suffixIcon: IconButton(
+                    icon: const Icon(
+                      Icons.tune_rounded,
+                      color: AppTheme.secondary,
+                    ),
+                    onPressed: _showFilterModal,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
                 ),
               ),
             ),
 
-            // Aktif Filtre Bilgisi (Sanatçı)
-            if (_selectedArtistFilter != null)
+            // --- AKTİF FİLTRE GÖSTERİMİ (CHIPS) ---
+            if (_selectedArtistFilter != null || _selectedDate != null)
               Padding(
-                padding: const EdgeInsets.only(top: 10, left: 5),
-                child: Row(
-                  children: [
-                    const Text(
-                      "Seçilen Sanatçı: ",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Expanded(
-                      child: Chip(
-                        label: Text(_selectedArtistFilter!),
-                        onDeleted: () {
+                padding: const EdgeInsets.only(top: 10),
+                child: SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      if (_selectedArtistFilter != null)
+                        _buildFilterChip("Sanatçı: $_selectedArtistFilter", () {
                           setState(() {
                             _selectedArtistFilter = null;
                             _runFilter();
                           });
-                        },
-                      ),
-                    ),
-                  ],
+                        }),
+                      if (_selectedDate != null)
+                        _buildFilterChip(
+                          "Tarih: ${_selectedDate!.day}.${_selectedDate!.month}",
+                          () {
+                            setState(() {
+                              _selectedDate = null;
+                              _runFilter();
+                            });
+                          },
+                        ),
+                    ],
+                  ),
                 ),
               ),
 
             const SizedBox(height: 15),
 
-            // Etkinlik Listesi
+            // --- ETKİNLİK LİSTESİ ---
             Expanded(
-              child: _filteredEvents.isEmpty
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    )
+                  : _filteredEvents.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.event_busy,
-                            size: 60,
-                            color: Colors.grey[400],
+                            Icons.event_busy_rounded,
+                            size: 70,
+                            color: Colors.grey[300],
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 15),
                           Text(
-                            // Kullanıcı bir şey arıyorsa daha spesifik mesaj göster
                             _allEvents.isEmpty
-                                ? "Veritabanında hiç etkinlik yok."
-                                : "Aradığınız kriterlere uygun etkinlik yok.",
-                            style: const TextStyle(color: Colors.grey),
+                                ? "Henüz etkinlik eklenmemiş."
+                                : "Kriterlere uygun etkinlik bulunamadı.",
+                            style: TextStyle(
+                              color: AppTheme.textGrey,
+                              fontSize: 16,
+                            ),
                           ),
                         ],
                       ),
                     )
                   : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 20),
                       itemCount: _filteredEvents.length,
                       itemBuilder: (context, index) {
-                        final event = _filteredEvents[index];
-                        return _buildEventCard(event);
+                        return _buildEventCard(_filteredEvents[index]);
                       },
                     ),
             ),
@@ -461,19 +497,35 @@ class _EventsState extends State<Events> {
     );
   }
 
-  // --- KART TASARIMI (GÜVENLİ ERİŞİM EKLENDİ) ---
+  Widget _buildFilterChip(String label, VoidCallback onDelete) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      child: Chip(
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppTheme.primary),
+        ),
+        backgroundColor: AppTheme.primary.withOpacity(0.1),
+        deleteIcon: const Icon(Icons.close, size: 16, color: AppTheme.primary),
+        onDeleted: onDelete,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  // --- MODERN ETKİNLİK KARTI ---
   Widget _buildEventCard(Map<String, dynamic> event) {
-    // 🔥 Güvenli Erişim
     final String artist = event['sanatci']?.toString() ?? 'Bilinmiyor';
-    final String venue = event['mekan']?.toString() ?? 'Mekan Yok';
-    final String date = event['tarih']?.toString() ?? 'Tarih Yok';
-    final String fiyat = event['fiyat']?.toString() ?? 'Ücretsiz/Bilinmiyor';
+    final String venue = event['mekan']?.toString() ?? 'Mekan Belirtilmemiş';
+    final String date = event['tarih']?.toString() ?? '';
+    final String fiyat = event['fiyat']?.toString() ?? 'Ücretsiz';
     final String imageUrl = event['resim']?.toString() ?? '';
 
     return GestureDetector(
-      onTap: () {
-        _searchOnGoogle(artist, venue);
-      },
+      onTap: () => _searchOnGoogle(artist, venue),
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
@@ -481,8 +533,8 @@ class _EventsState extends State<Events> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.15),
-              blurRadius: 10,
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 15,
               offset: const Offset(0, 5),
             ),
           ],
@@ -490,45 +542,26 @@ class _EventsState extends State<Events> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 1. Resim Alanı
             Stack(
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(20),
                   ),
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 180,
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: Icon(
-                                  Icons.broken_image, // Resim yüklenemedi ikonu
-                                  size: 50,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            );
-                          },
-                        )
-                      : Container(
-                          height: 180,
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_not_supported,
-                              size: 50,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
+                  child: SizedBox(
+                    height: 180,
+                    width: double.infinity,
+                    child: imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (c, e, s) => _placeholderImage(),
+                          )
+                        : _placeholderImage(),
+                  ),
                 ),
-                // Fiyat Etiketi (Resmin üzerinde sağ üstte)
+                // Fiyat Rozeti (Sağ Üst)
                 Positioned(
                   top: 15,
                   right: 15,
@@ -538,58 +571,95 @@ class _EventsState extends State<Events> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(20),
+                      color: AppTheme.secondary,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Text(
-                      fiyat, // Güvenli değişkenden çekildi
+                      fiyat,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
                     ),
                   ),
                 ),
+                // Tarih Rozeti (Sol Üst) - Eğer tarih varsa
+                if (date.isNotEmpty)
+                  Positioned(
+                    top: 15,
+                    left: 15,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_month_rounded,
+                            size: 14,
+                            color: AppTheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            date,
+                            style: const TextStyle(
+                              color: AppTheme.textDark,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
 
+            // 2. Bilgi Alanı
             Padding(
-              padding: const EdgeInsets.all(15.0),
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    date, // Güvenli değişkenden çekildi
-                    style: TextStyle(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    artist, // Güvenli değişkenden çekildi
+                    artist,
                     style: const TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textDark,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(
-                        Icons.location_on,
+                      const Icon(
+                        Icons.location_on_rounded,
                         size: 16,
-                        color: Colors.grey[500],
+                        color: AppTheme.textGrey,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          venue, // Güvenli değişkenden çekildi
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 13,
+                          venue,
+                          style: const TextStyle(
+                            color: AppTheme.textGrey,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -597,10 +667,43 @@ class _EventsState extends State<Events> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  // Aksiyon Satırı
+                  Row(
+                    children: [
+                      const Text(
+                        "Bilet ve Detaylar",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 20,
+                        color: AppTheme.primary,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholderImage() {
+    return Container(
+      color: Colors.grey[100],
+      child: Center(
+        child: Icon(
+          Icons.music_note_rounded,
+          size: 50,
+          color: Colors.grey[300],
         ),
       ),
     );
